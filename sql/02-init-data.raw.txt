@@ -1,0 +1,30 @@
+-- sql/02-init-data.sql
+USE `mall_user`;
+
+-- ⚠️ 超级管理员：全系统唯一，只能由本脚本插入，注册接口与后台接口都不允许创建该角色（见 03 文档 A2 / U17）
+-- 密码明文 Qingchuan@2026，务必用 BCryptPasswordEncoder(10) 现场生成后替换占位
+INSERT INTO `t_user`
+  (`username`,`password`,`nickname`,`avatar`,`email`,`role`,`status`,`can_publish`,
+   `province`,`city`,`district`,`signature`,`credit_score`,`create_time`,`update_time`)
+VALUES
+  ('superadmin', '<BCRYPT_HASH_OF_Qingchuan@2026>', '超级管理员', '/static/avatar/superadmin.png',
+   'superadmin@qingchuan.local', 'SUPER_ADMIN', 'NORMAL', 1,
+   '湖北省', '武汉市', '江岸区', '平台超级管理员', 100, NOW(), NOW());
+
+-- 普通管理员：密码同超管明文 Qingchuan@2026（8~20 位含字母数字，符合注册校验规则），务必现场生成后替换占位
+INSERT INTO `t_user`
+  (`username`,`password`,`nickname`,`avatar`,`email`,`role`,`status`,`can_publish`,
+   `province`,`city`,`district`,`signature`,`credit_score`,`create_time`,`update_time`)
+VALUES
+  ('admin', '<BCRYPT_HASH_OF_Qingchuan@2026>', '平台管理员', '/static/avatar/admin.png', 'admin@qingchuan.local',
+   'ADMIN', 'NORMAL', 1, '湖北省', '武汉市', '江岸区', '维护秩序，也修自行车', 100, NOW(), NOW());
+
+-- 演示用户：普通用户仍可在后台被超管提升为 ADMIN（接口 U17），因此无需在 SQL 里写死管理员
+INSERT INTO `t_user`
+  (`username`,`password`,`nickname`,`avatar`,`email`,`role`,`status`,`can_publish`,
+   `province`,`city`,`district`,`signature`,`credit_score`,`create_time`,`update_time`)
+VALUES
+  ('alice', '<BCRYPT_HASH_OF_Qingchuan@2026>', '爱丽丝', '/static/avatar/alice.png', 'alice@qingchuan.local',
+   'USER', 'NORMAL', 1, '湖北省', '武汉市', '洪山区', '毕业清仓，可小刀', 100, NOW(), NOW()),
+  ('bob',   '<BCRYPT_HASH_OF_Qingchuan@2026>', '小鲍', '/static/avatar/bob.png', 'bob@qingchuan.local',
+   'USER', 'NORMAL', 1, '湖北省', '武汉市', '江夏区', '只卖自用，不议价', 98, NOW(), NOW());

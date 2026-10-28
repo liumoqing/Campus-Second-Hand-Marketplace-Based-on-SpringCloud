@@ -1,0 +1,70 @@
+server:
+  port: 4403
+
+spring:
+  application:
+    name: mall-order
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/mall_order?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: mall_app
+    password: Mall@2026
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  configuration:
+    map-underscore-to-camel-case: true
+
+mall:
+  internal:
+    token: mall-internal-2026
+  jwt:
+    secret: qingchuan-mall-jwt-secret-key-please-change-in-production-2026
+
+# Seata AT：只有下单（扣库存 + 建单）跨库，其它流程都是单库本地事务
+seata:
+  enabled: true
+  application-id: mall-order
+  tx-service-group: mall-tx-group
+  service:
+    vgroup-mapping:
+      mall-tx-group: default
+  registry:
+    type: nacos
+    nacos:
+      application: seata-server
+      server-addr: 127.0.0.1:8848
+      namespace: public
+      group: SEATA_GROUP
+      cluster: default
+      username: nacos
+      password: nacos
+  config:
+    type: file
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.campus.mall: debug
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

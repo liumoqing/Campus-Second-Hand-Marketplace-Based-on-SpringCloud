@@ -1,0 +1,2 @@
+com.campus.mall.common.config.MallCommonAutoConfiguration
+com.campus.mall.common.config.MallCommonAutoConfiguration$MallMybatisAutoConfiguration

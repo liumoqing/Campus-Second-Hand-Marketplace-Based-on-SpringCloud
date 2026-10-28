@@ -1,0 +1,82 @@
+server:
+  port: 4399
+
+spring:
+  application:
+    name: mall-gateway
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          globalcors:
+            cors-configurations:
+              '[/**]':
+                allowedOriginPatterns: "*"
+                allowedMethods: "*"
+                allowedHeaders: "*"
+                allowCredentials: true
+                maxAge: 3600
+          default-filters:
+            - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_UNIQUE
+          routes:
+            - id: mall-auth
+              uri: lb://mall-auth
+              predicates:
+                - Path=/auth/**
+            - id: mall-user
+              uri: lb://mall-user
+              predicates:
+                - Path=/user/**
+            - id: mall-product
+              uri: lb://mall-product
+              predicates:
+                - Path=/product/**,/category/**,/favorite/**,/files/**,/static/**
+            - id: mall-order
+              uri: lb://mall-order
+              predicates:
+                - Path=/order/**
+            - id: mall-payment
+              uri: lb://mall-payment
+              predicates:
+                - Path=/payment/**
+            - id: mall-message
+              uri: lb://mall-message
+              predicates:
+                - Path=/message/**,/ws/**
+
+mall:
+  jwt:
+    # 与 mall-auth 的 mall.jwt.secret 必须一致；生产改环境变量
+    secret: qingchuan-mall-jwt-secret-key-please-change-in-production-2026
+    access-token-minutes: 120
+  security:
+    auth-enabled: true
+  internal:
+    # 服务间调用凭据，与各服务的 mall.internal.token 保持一致
+    token: mall-internal-2026
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.campus.mall: debug
+    org.springframework.cloud.gateway: info
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"

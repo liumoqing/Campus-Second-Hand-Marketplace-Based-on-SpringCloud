@@ -1,0 +1,139 @@
+/** 省市区三级数据（v1 内置常用地区，够演示；后期可换完整行政区划表） */
+export interface RegionNode {
+  value: string
+  label: string
+  children?: RegionNode[]
+}
+
+export const regions: RegionNode[] = [
+  {
+    value: '湖北省',
+    label: '湖北省',
+    children: [
+      {
+        value: '武汉市',
+        label: '武汉市',
+        children: [
+          { value: '江岸区', label: '江岸区' },
+          { value: '江汉区', label: '江汉区' },
+          { value: '硚口区', label: '硚口区' },
+          { value: '汉阳区', label: '汉阳区' },
+          { value: '武昌区', label: '武昌区' },
+          { value: '洪山区', label: '洪山区' },
+          { value: '江夏区', label: '江夏区' },
+          { value: '东西湖区', label: '东西湖区' }
+        ]
+      },
+      {
+        value: '宜昌市',
+        label: '宜昌市',
+        children: [
+          { value: '西陵区', label: '西陵区' },
+          { value: '伍家岗区', label: '伍家岗区' },
+          { value: '点军区', label: '点军区' }
+        ]
+      },
+      {
+        value: '襄阳市',
+        label: '襄阳市',
+        children: [
+          { value: '襄城区', label: '襄城区' },
+          { value: '樊城区', label: '樊城区' },
+          { value: '襄州区', label: '襄州区' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '河南省',
+    label: '河南省',
+    children: [
+      {
+        value: '郑州市',
+        label: '郑州市',
+        children: [
+          { value: '中原区', label: '中原区' },
+          { value: '金水区', label: '金水区' },
+          { value: '二七区', label: '二七区' }
+        ]
+      },
+      {
+        value: '洛阳市',
+        label: '洛阳市',
+        children: [
+          { value: '涧西区', label: '涧西区' },
+          { value: '洛龙区', label: '洛龙区' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '湖南省',
+    label: '湖南省',
+    children: [
+      {
+        value: '长沙市',
+        label: '长沙市',
+        children: [
+          { value: '岳麓区', label: '岳麓区' },
+          { value: '天心区', label: '天心区' },
+          { value: '雨花区', label: '雨花区' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '广东省',
+    label: '广东省',
+    children: [
+      {
+        value: '广州市',
+        label: '广州市',
+        children: [
+          { value: '天河区', label: '天河区' },
+          { value: '越秀区', label: '越秀区' },
+          { value: '番禺区', label: '番禺区' }
+        ]
+      },
+      {
+        value: '深圳市',
+        label: '深圳市',
+        children: [
+          { value: '南山区', label: '南山区' },
+          { value: '福田区', label: '福田区' },
+          { value: '宝安区', label: '宝安区' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '北京市',
+    label: '北京市',
+    children: [
+      {
+        value: '北京市',
+        label: '北京市',
+        children: [
+          { value: '海淀区', label: '海淀区' },
+          { value: '朝阳区', label: '朝阳区' },
+          { value: '昌平区', label: '昌平区' }
+        ]
+      }
+    ]
+  },
+  {
+    value: '上海市',
+    label: '上海市',
+    children: [
+      {
+        value: '上海市',
+        label: '上海市',
+        children: [
+          { value: '浦东新区', label: '浦东新区' },
+          { value: '徐汇区', label: '徐汇区' },
+          { value: '杨浦区', label: '杨浦区' }
+        ]
+      }
+    ]
+  }
+]

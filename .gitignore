@@ -1,9 +1,17 @@
-target/
+# 临时文件
+.tmp/
+
+# Maven 编译产物
+**/target/
+*.class
+*.jar
+*.war
+
+# 前端依赖与构建产物
+node_modules/
+frontend/dist/
+
+# IDE 配置文件
 .idea/
 *.iml
-*.class
-.mvn/
-mvnw
-mvnw.cmd
-*.log
-
+.vscode/

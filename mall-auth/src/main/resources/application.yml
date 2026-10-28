@@ -1,0 +1,49 @@
+server:
+  port: 4400
+
+spring:
+  application:
+    name: mall-auth
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:8848
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+  servlet:
+    multipart:
+      # A8 注册头像：≤2MB；超出由 Service 与本上限双重拦截
+      max-file-size: 2MB
+      max-request-size: 5MB
+
+mall:
+  jwt:
+    secret: qingchuan-mall-jwt-secret-key-please-change-in-production-2026
+    access-token-minutes: 120
+    refresh-token-days: 7
+  internal:
+    token: mall-internal-2026
+  captcha:
+    enabled: true
+    expire-seconds: 120
+  reset:
+    # 开发期把验证码回显给前端；生产置 false
+    code-echo: true
+    expire-seconds: 600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  level:
+    com.campus.mall: debug
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
