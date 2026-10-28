@@ -26,7 +26,8 @@ const submitting = ref(false)
 const replyTo = ref<CommentItem | null>(null)
 
 const id = computed(() => String(route.params.id || ''))
-const isOwner = computed(() => !!detail.value && detail.value.sellerId === user.profile?.id)
+const sellerId = computed(() => detail.value?.sellerId || detail.value?.seller?.id || '')
+const isOwner = computed(() => !!detail.value && sellerId.value === user.profile?.id)
 const images = computed(() => {
   const list = detail.value?.images?.length ? [...detail.value.images] : []
   if (!list.length && detail.value?.coverUrl) list.push(detail.value.coverUrl)
@@ -146,7 +147,7 @@ async function removeComment(c: CommentItem) {
 }
 
 function toSeller() {
-  if (detail.value?.sellerId) router.push(`/seller/${detail.value.sellerId}`)
+  if (sellerId.value) router.push(`/seller/${sellerId.value}`)
 }
 
 onMounted(load)

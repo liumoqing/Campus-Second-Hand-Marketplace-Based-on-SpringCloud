@@ -70,7 +70,7 @@ public class AuthService {
         if (!dto.getPassword().equals(dto.getConfirmPassword())) {
             throw new BizException(ErrorCode.PASSWORD_ERROR, "两次输入的密码不一致");
         }
-        if (!StringUtils.hasText(dto.getAvatar())) {
+        if (!StringUtils.hasText(dto.getAvatar()) || !isLocalAvatar(dto.getAvatar())) {
             throw new BizException(ErrorCode.AVATAR_INVALID);
         }
 
@@ -82,11 +82,22 @@ public class AuthService {
         payload.setAvatar(dto.getAvatar());
 
         R<Long> r = userClient.register(payload);
-        if (r == null || r.getCode() != 0) {
-            throw new BizException(r == null ? ErrorCode.SERVICE_DEGRADED : ErrorCode.PARAM_INVALID,
-                    r == null ? "注册失败" : r.getMessage());
+        if (r == null) {
+            throw new BizException(ErrorCode.SERVICE_DEGRADED, "注册失败");
+        }
+        if (r.getCode() != 0) {
+            // 透传 mall-user 的业务码，尤其是 20001/20006
+            throw new BizException(r.getCode(), r.getMessage());
         }
         return r.getData();
+    }
+
+    private boolean isLocalAvatar(String avatar) {
+        String a = avatar.trim();
+        return a.startsWith("/files/avatar/")
+                || a.startsWith("/static/avatar/")
+                || a.matches("^https?://(127\\.0\\.0\\.1|localhost):4402/files/avatar/.*")
+                || a.matches("^https?://(127\\.0\\.0\\.1|localhost):5173/static/avatar/.*");
     }
 
     // ---------------- A3 登录 ----------------
@@ -342,7 +353,9 @@ public class AuthService {
         vo.setAvatar(str(m.get("avatar")));
         vo.setEmail(str(m.get("email")));
         vo.setPhone(str(m.get("phone")));
+        vo.setProvince(str(m.get("province")));
         vo.setCity(str(m.get("city")));
+        vo.setDistrict(str(m.get("district")));
         vo.setSignature(str(m.get("signature")));
         vo.setRole(str(m.get("role")));
         vo.setStatus(str(m.get("status")));

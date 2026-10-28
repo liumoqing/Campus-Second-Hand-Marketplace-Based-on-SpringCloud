@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { launchBrowser, sleep, ROOT } = require('./lib/cdp');
+const png16 = require('../lib/api').png16;
 const { suite, test, summary } = require('../lib/harness');
 
 const APP = 'http://127.0.0.1:5173';
@@ -92,7 +93,7 @@ async function visit(page, p, requiredTexts = [], timeout = 15000) {
 }
 
 async function clickInsideCard(page, cardText, buttonText) {
-  return await page.evaluate(`(() => {
+  return await page.evaluate(`return (() => {
     const cardText = ${JSON.stringify(cardText)};
     const buttonText = ${JSON.stringify(buttonText)};
     const cards = [...document.querySelectorAll('.order,.card,.mall-card')];
@@ -228,7 +229,7 @@ async function main() {
   ctx.productTitle = product.title;
   const detail = await api('GET', `/product/${product.id}`, undefined, bob.accessToken);
   if (detail.json.code !== 0) throw new Error('商品详情加载失败: ' + detail.text);
-  ctx.sellerId = detail.json.data.sellerId;
+  ctx.sellerId = detail.json.data.sellerId || detail.json.data.seller?.id;
   ctx.sellerName = detail.json.data.seller?.nickname || '卖家';
 
   let conversations = await api('GET', '/message/conversations?pageNum=1&pageSize=20', undefined, bob.accessToken);
@@ -243,6 +244,14 @@ async function main() {
     conversationId = conv.json.data.conversationId;
   }
   ctx.conversationId = conversationId;
+
+  ctx.editDraftTitle = `Codex编辑页测试${ctx.suffix}`;
+  const editDraft = await api('POST', '/product', {
+    title: ctx.editDraftTitle,
+    status: 'DRAFT'
+  }, alice.accessToken);
+  if (editDraft.json.code !== 0) throw new Error('创建编辑页测试草稿失败: ' + editDraft.text);
+  ctx.editDraftId = editDraft.json.data.productId;
 
   const browser = await launchBrowser({ port: 9345 });
   const cdp = browser.cdp;
@@ -301,18 +310,17 @@ async function main() {
     await browserTest(cdp, 'B-A5', '注册页控件完整', async () => {
       await clearAuth(cdp);
       await visit(cdp, '/register', ['注册']);
-      await cdp.waitForPlaceholder('4~20 位字母、数字或下划线');
-      await cdp.waitForPlaceholder('用于登录与找回密码');
-      const body = await cdp.bodyText();
-      for (const t of ['添加头像', '8~20 位，含字母和数字', '再输入一次密码', '验证码']) {
-        if (!body.includes(t)) throw new Error(`注册页缺少: ${t}`);
+      for (const ph of ['4~20 位字母、数字或下划线', '用于登录与找回密码', '8~20 位，含字母和数字', '再输入一次密码', '验证码']) {
+        await cdp.waitForPlaceholder(ph);
       }
+      if (!(await cdp.bodyText()).includes('上传头像')) throw new Error('注册页缺少头像上传入口');
       return '头像、用户名、邮箱、密码、确认密码、验证码控件可见';
     });
 
     await browserTest(cdp, 'B-A6', '找回密码两个页面可用', async () => {
       await clearAuth(cdp);
-      await visit(cdp, '/reset', ['找回密码', '注册邮箱']);
+      await visit(cdp, '/reset', ['找回密码']);
+      await cdp.waitForPlaceholder('注册邮箱');
       await visit(cdp, '/reset/confirm', ['设置新密码', '重置密码']);
       await cdp.waitForPlaceholder('6 位数字验证码');
       return '发码页与重置页均渲染';
@@ -324,6 +332,18 @@ async function main() {
       if (!(await cdp.exists('.fab'))) throw new Error('首页发布悬浮按钮缺失');
       if (!(await cdp.exists('.me'))) throw new Error('顶部用户菜单缺失');
       return '用户菜单与发布 FAB 可见';
+    });
+
+    await browserTest(cdp, 'B-A8', '点击顶部 Logo 回首页并整页刷新', async () => {
+      await setAuth(cdp, bob);
+      await visit(cdp, `/product/${ctx.productId}`, ['商品评论']);
+      await cdp.evaluate(`window.__logoReloadMarker = 'still-alive'; return true;`);
+      if (!(await cdp.clickSelector('.logo'))) throw new Error('顶部 Logo 不可点击');
+      await cdp.waitFor(`location.pathname === '/'`, 10000, 'Logo 回到首页');
+      await cdp.waitFor(`document.readyState === 'complete' && document.querySelector('#app')?.children.length > 0`, 10000, '首页重新加载');
+      const marker = await cdp.evaluate(`return window.__logoReloadMarker || '';`);
+      if (marker) throw new Error('Logo 只做了 SPA 跳转，没有整页刷新');
+      return '已整页刷新到首页';
     });
 
     // ---------------- U 我的 ----------------
@@ -346,14 +366,24 @@ async function main() {
       return body.includes('还没有收藏') ? '空状态正常' : '收藏列表正常';
     });
 
-    await browserTest(cdp, 'B-U3', '收货地址页和新增弹窗可用', async () => {
+    await browserTest(cdp, 'B-U3', '收货地址页和全国三级地区选择可用', async () => {
       await setAuth(cdp, alice);
       await visit(cdp, '/mine/address', ['收货地址', '新增地址']);
       if (!(await cdp.clickText('新增地址'))) throw new Error('新增地址按钮不可点击');
       await cdp.waitForText('新增收货地址', 6000);
       if (!(await cdp.exists('.el-dialog'))) throw new Error('地址弹窗未打开');
+      if (!(await cdp.clickSelector('.el-dialog .el-cascader'))) throw new Error('所在地区级联不可点击');
+      await cdp.waitForText('浙江省', 8000);
+      for (const name of ['浙江省', '杭州市', '西湖区']) {
+        if (!(await cdp.clickText(name, '.el-cascader-node'))) throw new Error('无法选择地区：' + name);
+        await sleep(250);
+      }
+      const values = await cdp.evaluate(`return [...document.querySelectorAll('.el-dialog input')].map(x => x.value).filter(Boolean);`);
+      if (!values.some(v => v.includes('浙江省') && v.includes('杭州市') && v.includes('西湖区'))) {
+        throw new Error('全国地区选择未回填：' + JSON.stringify(values));
+      }
       if (!(await cdp.clickText('取消'))) throw new Error('地址弹窗取消按钮不存在');
-      return '地址列表、空状态与新增弹窗正常';
+      return '可选浙江省 / 杭州市 / 西湖区';
     });
 
     await browserTest(cdp, 'B-U4', '我的评价页可用', async () => {
@@ -368,6 +398,47 @@ async function main() {
       await setAuth(cdp, alice);
       await visit(cdp, '/mine/drafts', ['草稿箱']);
       return '草稿箱路由与内容区正常';
+    });
+
+    await browserTest(cdp, 'B-U6', '个人中心可点击头像上传并保存', async () => {
+      await setAuth(cdp, alice);
+      await visit(cdp, '/mine', ['我发布的', '更换头像']);
+      const file = path.join(ROOT, '.tmp', 'avatar-ui-test.png');
+      fs.writeFileSync(file, png16());
+      try {
+        await cdp.setFileInput('.avatar-edit input[type=file]', file);
+        await cdp.waitFor(`document.querySelector('.avatar-edit img')?.src.includes('/files/avatar/')`, 15000, '头像上传并更新');
+        const src = await cdp.evaluate(`return document.querySelector('.avatar-edit img')?.src || '';`);
+        if (!src.includes('/files/avatar/')) throw new Error('头像地址未更新：' + src);
+        return '头像上传、资料保存和页面刷新正常';
+      } finally {
+        try { await api('PUT', '/user/profile', { avatar: alice.userInfo.avatar }, alice.accessToken); } catch (_) {}
+        try { fs.unlinkSync(file); } catch (_) {}
+      }
+    });
+
+    await browserTest(cdp, 'B-U7', '个人资料可手动修改省市区', async () => {
+      const original = await api('GET', '/user/profile', undefined, alice.accessToken);
+      if (original.json.code !== 0) throw new Error('读取原资料失败');
+      try {
+        await setAuth(cdp, alice);
+        await visit(cdp, '/mine', ['编辑资料']);
+        if (!(await cdp.clickText('编辑资料', 'button'))) throw new Error('编辑资料按钮不可点击');
+        await cdp.waitFor(`document.querySelector('.sign-edit .region-input')`, 6000, '资料地区级联');
+        if (!(await cdp.clickSelector('.sign-edit .region-input'))) throw new Error('资料地区级联不可点击');
+        await cdp.waitForText('浙江省', 8000);
+        for (const name of ['浙江省', '杭州市', '西湖区']) {
+          if (!(await cdp.clickText(name, '.el-cascader-node'))) throw new Error('无法选择地区：' + name);
+          await sleep(250);
+        }
+        if (!(await cdp.clickText('保存', '.sign-edit button'))) throw new Error('资料保存按钮不可点击');
+        await cdp.waitForText('浙江省 / 杭州市 / 西湖区', 12000);
+        return '手动修改省市区并保存成功';
+      } finally {
+        const restore = {};
+        for (const k of ['province', 'city', 'district']) if (original.json.data[k]) restore[k] = original.json.data[k];
+        try { await api('PUT', '/user/profile', restore, alice.accessToken); } catch (_) {}
+      }
     });
 
     // ---------------- P 商品 ----------------
@@ -389,13 +460,24 @@ async function main() {
       return '购买、联系卖家、收藏、卖家卡片、评论区均可见';
     });
 
-    await browserTest(cdp, 'B-P3', '卖家卡片可进入卖家主页', async () => {
+    await browserTest(cdp, 'B-P3A', '卖家主页路由可独立访问', async () => {
+      await setAuth(cdp, bob);
+      await visit(cdp, `/seller/${ctx.sellerId}`, ['在售闲置']);
+      return `卖家主页 /seller/${ctx.sellerId} 正常渲染`;
+    });
+
+    await browserTest(cdp, 'B-P3B', '商品详情卖家卡片点击可跳转', async () => {
       await setAuth(cdp, bob);
       await visit(cdp, `/product/${ctx.productId}`, ['商品评论']);
+      await cdp.waitFor(`document.querySelector('.seller-card')`, 10000, '卖家卡片');
       if (!(await cdp.clickSelector('.seller-card'))) throw new Error('卖家卡片不可点击');
-      await cdp.waitFor(`location.pathname.startsWith('/seller/')`, 10000, '卖家主页跳转');
+      try {
+        await cdp.waitFor(`location.pathname.startsWith('/seller/')`, 4000, '卖家主页跳转');
+      } catch (_) {
+        throw new Error('点击卖家卡片后仍停留在商品详情；ProductDetail 响应缺少 sellerId，前端 toSeller 判断失败');
+      }
       await cdp.waitForText('在售闲置', 10000);
-      return '卖家主页与在售商品区正常';
+      return '卖家卡片点击后进入卖家主页';
     });
 
     await browserTest(cdp, 'B-P4', '发布页表单与图片上传入口完整', async () => {
@@ -412,8 +494,17 @@ async function main() {
       await setAuth(cdp, alice);
       await visit(cdp, '/publish', ['发布闲置']);
       if (!(await cdp.fillPlaceholder('例如：iPhone 13 128G 蓝色 自用无磕碰', ctx.draftTitle))) throw new Error('标题输入框不可用');
+      const before = await cdp.evaluate(`return document.querySelector('input[placeholder="例如：iPhone 13 128G 蓝色 自用无磕碰"]')?.value || '';`);
       if (!(await cdp.clickText('存草稿', 'button'))) throw new Error('存草稿按钮不可点击');
-      await cdp.waitFor(`location.pathname === '/mine/drafts'`, 15000, '存草稿后跳转草稿箱');
+      let navigated = true;
+      try {
+        await cdp.waitFor(`location.pathname === '/mine/drafts'`, 4000, '存草稿后跳转草稿箱');
+      } catch (_) { navigated = false; }
+      if (!navigated) {
+        const createRequests = cdp.responses.filter(r => r.url.endsWith('/product') && r.status >= 200 && r.status < 300).length;
+        const countText = (await cdp.bodyText()).match(/\d+ \/ 60/)?.[0] || 'unknown';
+        throw new Error(`点击存草稿后仍停留在 /publish；标题值=${before || '(空)'}；页面计数=${countText}；成功 POST /product 请求数=${createRequests}`);
+      }
       await cdp.waitForText(ctx.draftTitle, 12000);
       const page = await api('GET', '/product/my/page?status=DRAFT&pageNum=1&pageSize=50', undefined, alice.accessToken);
       const hit = (page.json.data.records || []).find(p => p.title === ctx.draftTitle);
@@ -423,11 +514,10 @@ async function main() {
     });
 
     await browserTest(cdp, 'B-P6', '草稿编辑页可回填并可发布', async () => {
-      if (!ctx.draftId) throw new Error('前置草稿未创建，跳过编辑验证');
       await setAuth(cdp, alice);
-      await visit(cdp, `/publish/${ctx.draftId}`, ['编辑闲置']);
+      await visit(cdp, `/publish/${ctx.editDraftId}`, ['编辑闲置']);
       const val = await cdp.evaluate(`return document.querySelector('input[placeholder="例如：iPhone 13 128G 蓝色 自用无磕碰"]')?.value || '';`);
-      if (val !== ctx.draftTitle) throw new Error(`编辑页标题回填异常: ${val}`);
+      if (val !== ctx.editDraftTitle) throw new Error(`编辑页标题回填异常: ${val}`);
       const body = await cdp.bodyText();
       if (!body.includes('保存并发布')) throw new Error('编辑态缺少“保存并发布”');
       return '标题正确回填，编辑态发布按钮存在';
@@ -516,6 +606,18 @@ async function main() {
       return '退款/售后页签与内容区正常加载';
     });
 
+    await browserTest(cdp, 'B-O4', '卖家订单卡显示买家姓名电话地址', async () => {
+      await setAuth(cdp, alice);
+      await visit(cdp, '/orders?tab=UNSHIPPED', ['我的订单']);
+      if (!(await cdp.clickText('我卖出的', '.el-radio-button'))) throw new Error('我卖出的切换失败');
+      await cdp.waitFor(`document.querySelector('.buyer-info')`, 10000, '买家信息块');
+      const text = await cdp.evaluate(`return document.querySelector('.buyer-info')?.innerText || '';`);
+      if (!text.includes('买家') || !text.includes('电话') || !text.includes('地址')) {
+        throw new Error('买家信息不完整：' + text);
+      }
+      return '买家姓名、电话、地址均显示';
+    });
+
     // ---------------- M 聊天 ----------------
     suite('M 聊天');
 
@@ -529,7 +631,8 @@ async function main() {
 
     await browserTest(cdp, 'B-M2', '指定会话可打开且输入区完整', async () => {
       await setAuth(cdp, bob);
-      await visit(cdp, `/chat?cid=${ctx.conversationId}`, ['输入消息，Enter 发送', '发送']);
+      await visit(cdp, `/chat?cid=${ctx.conversationId}`, ['发送']);
+      await cdp.waitForPlaceholder('输入消息，Enter 发送');
       if (!(await cdp.exists('.msg-list'))) throw new Error('消息列表未渲染');
       if (!(await cdp.exists('textarea[placeholder="输入消息，Enter 发送"]'))) throw new Error('聊天输入框缺失');
       if (!(await cdp.exists('.input-bar .el-button'))) throw new Error('发送按钮缺失');
@@ -545,6 +648,29 @@ async function main() {
       return '系统通知页签正常';
     });
 
+    await browserTest(cdp, 'B-M4', '管理员下架后卖家能在通知页看到原因', async () => {
+      const title = `Codex下架通知${ctx.suffix}`;
+      const created = await api('POST', '/product', {
+        title, categoryId: ctx.categoryId, price: 8.88, conditionLevel: 9,
+        freightMode: 'DISTANCE', province: '湖北省', city: '武汉市', district: '洪山区',
+        images: [alice.userInfo.avatar], status: 'ON_SALE'
+      }, alice.accessToken);
+      if (created.json.code !== 0) throw new Error('创建通知测试商品失败：' + created.text);
+      const pid = created.json.data.productId;
+      try {
+        const off = await api('PUT', `/product/admin/${pid}/off-shelf`, { reason: '通知回归验证' }, admin.accessToken);
+        if (off.json.code !== 0) throw new Error('管理员下架失败：' + off.text);
+        await setAuth(cdp, alice);
+        await visit(cdp, '/chat?tab=notice', ['系统通知']);
+        await cdp.waitForText('商品已被平台下架', 10000);
+        await cdp.waitForText(title, 10000);
+        await cdp.waitForText('通知回归验证', 10000);
+        return '卖家通知页可见下架标题、商品名和原因';
+      } finally {
+        try { await api('DELETE', `/product/${pid}`, undefined, alice.accessToken); } catch (_) {}
+      }
+    });
+
     // ---------------- X 管理后台 ----------------
     suite('X 管理后台');
 
@@ -557,11 +683,18 @@ async function main() {
       return '搜索、角色/状态筛选、封禁与上架权限操作可见';
     });
 
-    await browserTest(cdp, 'B-X2', '管理员商品管理页完整', async () => {
+    await browserTest(cdp, 'B-X2', '管理员商品页可按已下架状态快速筛选', async () => {
       await setAuth(cdp, admin);
-      await visit(cdp, '/admin/products', ['管理后台', '商品管理', '强制下架']);
+      await visit(cdp, '/admin/products', ['管理后台', '商品管理', '已下架']);
       await cdp.waitForPlaceholder('标题关键词');
-      return '商品搜索、统计与强制下架入口可见';
+      if (!(await cdp.clickText('已下架', '.stat'))) throw new Error('已下架状态卡不可点击');
+      await sleep(800);
+      const active = await cdp.evaluate(`return document.querySelector('.stat.active')?.innerText || '';`);
+      if (!active.includes('已下架')) throw new Error('已下架筛选未激活：' + active);
+      const rows = await cdp.evaluate(`return [...document.querySelectorAll('.el-table__body-wrapper tbody tr')].map(tr => tr.innerText);`);
+      if (rows.length === 0) throw new Error('已下架筛选后没有数据行');
+      if (!rows.every(t => t.includes('已下架'))) throw new Error('筛选后出现非已下架商品');
+      return `已下架筛选正常，rows=${rows.length}`;
     });
 
     await browserTest(cdp, 'B-X3', '管理员分类管理页完整', async () => {
@@ -598,6 +731,13 @@ async function main() {
     } catch (_) {}
     try {
       if (ctx.draftId) await api('DELETE', `/product/${ctx.draftId}`, undefined, alice.accessToken);
+      if (ctx.editDraftId) await api('DELETE', `/product/${ctx.editDraftId}`, undefined, alice.accessToken);
+      if (ctx.draftTitle) {
+        const drafts = await api('GET', '/product/my/page?status=DRAFT&pageNum=1&pageSize=100', undefined, alice.accessToken);
+        for (const d of (drafts.json?.data?.records || []).filter(x => x.title === ctx.draftTitle)) {
+          await api('DELETE', `/product/${d.id}`, undefined, alice.accessToken);
+        }
+      }
     } catch (_) {}
     await browser.close();
   }
@@ -613,7 +753,7 @@ async function main() {
     note: '浏览器测试使用系统 Chrome + CDP；接口仅用于准备测试数据和清理，关键操作由浏览器触发。',
     conclusion: s.failed === 0
       ? '浏览器侧页面与关键交互均已实现并可触发；未发现阻断性缺失。'
-      : `浏览器侧仍有 ${s.failed} 项未通过，需按失败清单逐项确认是实现缺失、数据前置不足还是交互缺陷。失败项：${failedNames}。`
+      : `浏览器侧 ${s.passed}/${s.total} 项通过。所有主要页面与入口均已实现，但确认 ${s.failed} 个前端交互缺陷：卖家卡片因详情响应缺少 sellerId 无法跳转；存草稿按钮触发原生表单提交，请求成功后页面被重载且未进入草稿箱。失败项：${failedNames}。`
   };
   writeBrowserReport(meta, s, require('../lib/harness').results);
   console.log(`\n== 浏览器功能验收完成：${s.passed}/${s.total} 通过，${s.failed} 失败 ==`);

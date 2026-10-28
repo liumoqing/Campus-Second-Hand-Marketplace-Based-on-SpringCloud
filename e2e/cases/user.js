@@ -89,7 +89,11 @@ module.exports = {
       ok(await put('/user/addresses/' + ctx.addressId + '/default', null, { token: newbie() }), '设默认');
       const d = ok(await get('/user/addresses/default', { token: newbie() }));
       t.eq(String(d.id), String(ctx.addressId), '默认地址 id');
-      return 'ok';
+      const profile = ok(await get('/user/profile', { token: newbie() }));
+      t.eq(profile.province, '湖北省', '资料省同步');
+      t.eq(profile.city, '武汉市', '资料市同步');
+      t.eq(profile.district, '江岸区', '资料区同步');
+      return '默认地址与资料地区已同步';
     });
 
     await t.test('U10', 'GET /user/addresses/default 与 U5 默认标记一致', async () => {

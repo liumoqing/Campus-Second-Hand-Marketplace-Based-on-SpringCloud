@@ -46,6 +46,12 @@ function search() {
   load()
 }
 
+function filterByStatus(status: string) {
+  query.status = query.status === status ? '' : status
+  pageNum.value = 1
+  load()
+}
+
 function openOff(row: any) {
   offTarget.value = row
   offReason.value = ''
@@ -55,9 +61,11 @@ function openOff(row: any) {
 async function submitOff() {
   if (!offTarget.value) return
   await adminProductApi.offShelf(offTarget.value.id, offReason.value || '违反平台规则')
-  ElMessage.success('已强制下架，卖家会收到通知')
+  ElMessage.success('已强制下架并通知卖家，可在「已下架」筛选中查看')
   offVisible.value = false
-  load()
+  query.status = 'OFF_SHELF'
+  pageNum.value = 1
+  await load()
   stats.value = await adminProductApi.statistics()
 }
 
@@ -72,12 +80,13 @@ onMounted(async () => {
     <h2 class="page-title">商品管理</h2>
 
     <div class="stats">
-      <div class="stat"><b>{{ stats.total ?? 0 }}</b><span>全部</span></div>
-      <div class="stat"><b>{{ stats.onSale ?? 0 }}</b><span>在售</span></div>
-      <div class="stat"><b>{{ stats.locked ?? 0 }}</b><span>交易中</span></div>
-      <div class="stat"><b>{{ stats.sold ?? 0 }}</b><span>已售出</span></div>
-      <div class="stat"><b>{{ stats.offShelf ?? 0 }}</b><span>已下架</span></div>
+      <div class="stat" :class="{ active: !query.status }" @click="filterByStatus('')"><b>{{ stats.total ?? 0 }}</b><span>全部</span></div>
+      <div class="stat" :class="{ active: query.status === 'ON_SALE' }" @click="filterByStatus('ON_SALE')"><b>{{ stats.onSale ?? 0 }}</b><span>在售</span></div>
+      <div class="stat" :class="{ active: query.status === 'LOCKED' }" @click="filterByStatus('LOCKED')"><b>{{ stats.locked ?? 0 }}</b><span>交易中</span></div>
+      <div class="stat" :class="{ active: query.status === 'SOLD' }" @click="filterByStatus('SOLD')"><b>{{ stats.sold ?? 0 }}</b><span>已售出</span></div>
+      <div class="stat" :class="{ active: query.status === 'OFF_SHELF' }" @click="filterByStatus('OFF_SHELF')"><b>{{ stats.offShelf ?? 0 }}</b><span>已下架</span></div>
     </div>
+    <div class="mall-sub filter-tip">点击上方状态卡可快速筛选；已下架商品会显示下架原因。</div>
 
     <div class="filters">
       <el-input v-model="query.keyword" placeholder="标题关键词" clearable style="width: 220px" @keyup.enter="search" />
@@ -159,11 +168,17 @@ onMounted(async () => {
 .stat {
   flex: 1;
   background: #fafbfc;
+  border: 1px solid transparent;
   border-radius: 8px;
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
 }
+.stat:hover { background: #f5f6f8; }
+.stat.active { border-color: var(--mall-primary); background: var(--mall-primary-light); }
+.filter-tip { margin: -6px 0 12px; }
 .stat b {
   font-size: 20px;
 }

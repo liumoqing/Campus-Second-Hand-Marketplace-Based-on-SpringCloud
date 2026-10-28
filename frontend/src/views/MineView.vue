@@ -2,10 +2,11 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { orderApi, productApi, userApi } from '@/api'
+import { authApi, orderApi, productApi, userApi } from '@/api'
 import { useUserStore } from '@/stores/user'
 import ProductCardItem from '@/components/ProductCardItem.vue'
 import AddressFormDialog from '@/components/AddressFormDialog.vue'
+import { regions } from '@/data/regions'
 import type { AddressItem, ProductCard } from '@/types'
 
 const route = useRoute()
@@ -25,6 +26,9 @@ const loading = ref(false)
 const signature = ref('')
 const editingSign = ref(false)
 const nickname = ref('')
+const profileRegion = ref<string[]>([])
+const avatarInput = ref<HTMLInputElement>()
+const avatarUploading = ref(false)
 
 const addrDialog = ref(false)
 const editingAddr = ref<AddressItem | null>(null)
@@ -40,6 +44,10 @@ const tabs: { key: TabKey; label: string }[] = [
 ]
 
 const profile = computed(() => user.profile)
+const profileLocation = computed(() => {
+  const p = profile.value
+  return [p?.province, p?.city, p?.district].filter(Boolean).join(' / ') || '未填写地区'
+})
 
 async function loadStats() {
   stats.value = await userApi.statistics()
@@ -80,10 +88,65 @@ function switchTab(k: TabKey) {
   router.replace(`/mine/${k}`)
 }
 
+function pickAvatar() {
+  if (!avatarUploading.value) avatarInput.value?.click()
+}
+
+async function onAvatarChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+    ElMessage.error('只支持 jpg/png/webp/gif 图片')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.error('头像不能超过 2MB')
+    return
+  }
+  avatarUploading.value = true
+  try {
+    const r = await authApi.uploadAvatar(file)
+    await user.updateProfile({ avatar: r.url })
+    ElMessage.success('头像已更新')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
+function syncProfileRegion() {
+  profileRegion.value = [profile.value?.province || '', profile.value?.city || '', profile.value?.district || ''].filter(Boolean)
+}
+
+function beginEditProfile() {
+  signature.value = profile.value?.signature || ''
+  nickname.value = profile.value?.nickname || ''
+  syncProfileRegion()
+  editingSign.value = true
+}
+
 async function saveSignature() {
-  await user.updateProfile({ signature: signature.value, nickname: nickname.value || profile.value?.nickname })
+  if (profileRegion.value.length !== 3) {
+    ElMessage.warning('请选择完整的省 / 市 / 区')
+    return
+  }
+  const [province, city, district] = profileRegion.value
+  await user.updateProfile({
+    signature: signature.value,
+    nickname: nickname.value || profile.value?.nickname,
+    province,
+    city,
+    district
+  })
   ElMessage.success('资料已更新')
   editingSign.value = false
+}
+
+async function onAddressSaved() {
+  await loadTab()
+  await user.fetchMe()
+  syncProfileRegion()
 }
 
 async function removeProduct(p: ProductCard) {
@@ -107,13 +170,17 @@ function editAddr(a: AddressItem) {
 async function delAddr(a: AddressItem) {
   await userApi.deleteAddress(a.id)
   ElMessage.success('已删除')
-  loadTab()
+  await loadTab()
+  await user.fetchMe()
+  syncProfileRegion()
 }
 
 async function setDefault(a: AddressItem) {
   await userApi.setDefaultAddress(a.id)
-  ElMessage.success('已设为默认')
-  loadTab()
+  ElMessage.success('已设为默认，资料地区已同步')
+  await loadTab()
+  await user.fetchMe()
+  syncProfileRegion()
 }
 
 watch(
@@ -128,6 +195,7 @@ onMounted(async () => {
   await user.fetchMe()
   signature.value = profile.value?.signature || ''
   nickname.value = profile.value?.nickname || ''
+  syncProfileRegion()
   await Promise.all([loadStats(), loadTab()])
 })
 </script>
@@ -135,16 +203,23 @@ onMounted(async () => {
 <template>
   <div class="mine mall-page">
     <div class="profile mall-card">
-      <el-avatar :size="80" :src="profile?.avatar || undefined">
-        {{ (profile?.nickname || '?').slice(0, 1) }}
-      </el-avatar>
+      <div class="avatar-edit" :class="{ uploading: avatarUploading }" @click="pickAvatar">
+        <el-avatar :size="80" :src="profile?.avatar || undefined">
+          {{ (profile?.nickname || '?').slice(0, 1) }}
+        </el-avatar>
+        <div class="avatar-mask">
+          <el-icon><Camera /></el-icon>
+          <span>{{ avatarUploading ? '上传中…' : '更换头像' }}</span>
+        </div>
+        <input ref="avatarInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" @change="onAvatarChange" />
+      </div>
       <div class="p-info">
         <div class="p-name">
           <span>{{ profile?.nickname }}</span>
           <el-tag v-if="profile?.role === 'SUPER_ADMIN'" size="small" type="danger">超级管理员</el-tag>
           <el-tag v-else-if="profile?.role === 'ADMIN'" size="small" type="warning">管理员</el-tag>
         </div>
-        <div class="p-city mall-sub">{{ profile?.city || '未填写地区' }} · 信用分 {{ profile?.creditScore ?? '-' }}</div>
+        <div class="p-city mall-sub" title="点击编辑地区" @click="beginEditProfile">{{ profileLocation }} · 信用分 {{ profile?.creditScore ?? '-' }}</div>
 
         <div v-if="!editingSign" class="sign-box" @click="editingSign = true">
           {{ profile?.signature || '点击填写个性签名…' }}
@@ -152,6 +227,7 @@ onMounted(async () => {
         <div v-else class="sign-edit">
           <el-input v-model="signature" maxlength="200" show-word-limit placeholder="一句话介绍自己" />
           <el-input v-model="nickname" maxlength="20" placeholder="昵称" class="nick-input" />
+          <el-cascader v-model="profileRegion" :options="regions" :props="{ value: 'value', label: 'label' }" placeholder="省 / 市 / 区" class="region-input" />
           <el-button size="small" type="primary" @click="saveSignature">保存</el-button>
           <el-button size="small" @click="editingSign = false">取消</el-button>
         </div>
@@ -163,7 +239,7 @@ onMounted(async () => {
           <span><b>{{ stats.draftCount ?? 0 }}</b>草稿</span>
         </div>
       </div>
-      <el-button class="p-edit" plain @click="editingSign = true">编辑资料</el-button>
+      <el-button class="p-edit" plain @click="beginEditProfile">编辑资料</el-button>
     </div>
 
     <div class="body">
@@ -235,7 +311,7 @@ onMounted(async () => {
       </section>
     </div>
 
-    <AddressFormDialog v-model="addrDialog" :address="editingAddr" @saved="loadTab" />
+    <AddressFormDialog v-model="addrDialog" :address="editingAddr" @saved="onAddressSaved" />
   </div>
 </template>
 
@@ -250,6 +326,32 @@ onMounted(async () => {
   align-items: flex-start;
   position: relative;
 }
+.avatar-edit {
+  width: 80px;
+  height: 80px;
+  flex: 0 0 80px;
+  border-radius: 50%;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+}
+.avatar-edit input { display: none; }
+.avatar-mask {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, .52);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity .18s;
+}
+.avatar-edit:hover .avatar-mask,
+.avatar-edit.uploading .avatar-mask { opacity: 1; }
 .p-info {
   flex: 1;
   min-width: 0;
@@ -283,6 +385,8 @@ onMounted(async () => {
 .nick-input {
   width: 160px;
 }
+.region-input { width: 260px; }
+.p-city { cursor: pointer; }
 .p-stats {
   display: flex;
   gap: 24px;

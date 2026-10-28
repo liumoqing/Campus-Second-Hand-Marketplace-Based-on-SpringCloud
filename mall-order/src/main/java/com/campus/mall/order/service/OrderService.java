@@ -375,6 +375,16 @@ public class OrderService {
             row.put("counterpartNickname", peer.get("nickname"));
             row.put("counterpartAvatar", peer.get("avatar"));
         }
+        // 卖家发货需要买家收货信息：来自下单时冻结的地址快照
+        Map<String, Object> addr = addressOf(o);
+        if (!addr.isEmpty()) {
+            row.put("buyerName", addr.get("receiver"));
+            row.put("buyerPhone", addr.get("phone"));
+            String fullAddress = str(addr.get("province")) + str(addr.get("city"))
+                    + str(addr.get("district")) + str(addr.get("detail"));
+            row.put("buyerAddress", fullAddress);
+            row.put("address", addr);
+        }
         return row;
     }
 

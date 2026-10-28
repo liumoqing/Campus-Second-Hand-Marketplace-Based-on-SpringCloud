@@ -38,7 +38,7 @@ mall:
   internal:
     token: mall-internal-2026
   upload:
-    dir: ${user.home}/mall-upload
+    dir: ${user.dir}/.tmp/uploads
     base-url: http://127.0.0.1:4402
 
 # Seata AT：本服务是下单全局事务的「扣库存」分支（01 §7.6）

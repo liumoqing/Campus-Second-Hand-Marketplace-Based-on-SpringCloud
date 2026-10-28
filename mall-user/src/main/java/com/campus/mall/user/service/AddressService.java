@@ -5,13 +5,16 @@ import com.campus.mall.common.api.ErrorCode;
 import com.campus.mall.common.exception.BizException;
 import com.campus.mall.common.util.MaskUtil;
 import com.campus.mall.user.dto.AddressDTO;
+import com.campus.mall.user.entity.User;
 import com.campus.mall.user.entity.UserAddress;
 import com.campus.mall.user.mapper.UserAddressMapper;
+import com.campus.mall.user.mapper.UserMapper;
 import com.campus.mall.user.vo.AddressVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 
@@ -25,6 +28,7 @@ public class AddressService {
     private static final int MAX_ADDRESS = 10;
 
     private final UserAddressMapper addressMapper;
+    private final UserMapper userMapper;
 
     public List<AddressVO> list(Long userId) {
         List<UserAddress> rows = addressMapper.selectList(Wrappers.<UserAddress>lambdaQuery()
@@ -58,18 +62,21 @@ public class AddressService {
         copy(dto, a);
         a.setIsDefault(asDefault ? 1 : 0);
         addressMapper.insert(a);
+        if (asDefault) syncUserLocation(userId, a);
         return a.getId();
     }
 
     @Transactional(rollbackFor = Exception.class)
     public boolean update(Long userId, Long id, AddressDTO dto) {
         UserAddress a = requireOwn(userId, id);
+        boolean wasDefault = a.getIsDefault() != null && a.getIsDefault() == 1;
         copy(dto, a);
         if (Boolean.TRUE.equals(dto.getIsDefault())) {
             clearDefault(userId);
             a.setIsDefault(1);
         }
         addressMapper.updateById(a);
+        if (wasDefault || Boolean.TRUE.equals(dto.getIsDefault())) syncUserLocation(userId, a);
         return true;
     }
 
@@ -83,6 +90,7 @@ public class AddressService {
             if (newest != null) {
                 newest.setIsDefault(1);
                 addressMapper.updateById(newest);
+                syncUserLocation(userId, newest);
             }
         }
         return true;
@@ -94,6 +102,7 @@ public class AddressService {
         clearDefault(userId);
         a.setIsDefault(1);
         addressMapper.updateById(a);
+        syncUserLocation(userId, a);
         return true;
     }
 
@@ -106,6 +115,16 @@ public class AddressService {
             throw new BizException(ErrorCode.NOT_FOUND);
         }
         return a;
+    }
+
+    /** 默认地址变化时同步用户资料地区；手动编辑资料不调用此方法。 */
+    private void syncUserLocation(Long userId, UserAddress a) {
+        userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                .eq(User::getId, userId)
+                .set(User::getProvince, a.getProvince())
+                .set(User::getCity, a.getCity())
+                .set(User::getDistrict, a.getDistrict())
+                .set(User::getUpdateTime, LocalDateTime.now()));
     }
 
     private void clearDefault(Long userId) {

@@ -15,12 +15,12 @@ const emit = defineEmits<{ (e: 'primary'): void; (e: 'draft'): void }>()
 
 <template>
   <div class="split-btn">
-    <button class="half primary" :disabled="loading" @click="emit('primary')">
+    <button type="button" class="half primary" :disabled="loading" @click="emit('primary')">
       {{ loading ? '提交中…' : primaryText }}
     </button>
     <template v-if="showDraft">
       <span class="divider" />
-      <button class="half draft" :disabled="loadingDraft" @click="emit('draft')">
+      <button type="button" class="half draft" :disabled="loadingDraft" @click="emit('draft')">
         {{ loadingDraft ? '保存中…' : draftText }}
       </button>
     </template>

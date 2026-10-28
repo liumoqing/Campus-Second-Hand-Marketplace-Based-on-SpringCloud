@@ -33,7 +33,7 @@ public class LocalFileStorage {
     private final Path root;
     private final String baseUrl;
 
-    public LocalFileStorage(@Value("${mall.upload.dir:${user.home}/mall-upload}") String dir,
+    public LocalFileStorage(@Value("${mall.upload.dir:${user.dir}/.tmp/uploads}") String dir,
                             @Value("${mall.upload.base-url:http://127.0.0.1:4402}") String baseUrl) {
         this.root = Paths.get(dir).toAbsolutePath().normalize();
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;

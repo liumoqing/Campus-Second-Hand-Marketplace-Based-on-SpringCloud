@@ -303,7 +303,11 @@ module.exports = {
       const d = ok(await get('/product/' + ctx.productId, { token: alice() }));
       t.eq(d.status, 'OFF_SHELF', 'status');
       t.eq(d.offShelfReason, '违规内容测试', 'offShelfReason');
-      return 'ok';
+      const notices = ok(await get('/message/notices?pageNum=1&pageSize=50', { token: alice() }));
+      const hit = (notices.records || []).find(n => String(n.bizId) === String(ctx.productId) && n.title === '商品已被平台下架');
+      t.assert(hit, '卖家未收到下架通知');
+      t.contains(hit.content, '违规内容测试', '通知正文');
+      return '下架 + 通知均成功';
     });
 
     await t.test('P26', '后台商品统计', async () => {

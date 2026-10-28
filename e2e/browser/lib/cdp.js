@@ -176,17 +176,29 @@ class CDP {
 
   async fillPlaceholder(placeholder, value) {
     await this.waitForPlaceholder(placeholder);
-    return await this.evaluate(`return (() => {
+    const focused = await this.evaluate(`return (() => {
       const el = [...document.querySelectorAll('input,textarea')]
         .find(x => x.placeholder === ${JSON.stringify(placeholder)});
       if (!el) return false;
-      const proto = el.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
-      const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
-      setter.call(el, ${JSON.stringify(value)});
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.focus();
+      el.select();
       return true;
     })()`);
+    if (!focused) return false;
+    await this.send('Input.insertText', { text: String(value) });
+    await sleep(80);
+    return true;
+  }
+
+  async setFileInput(selector, filePath) {
+    const r = await this.send('Runtime.evaluate', {
+      expression: `document.querySelector(${JSON.stringify(selector)})`,
+      returnByValue: false
+    });
+    if (!r.result?.objectId) throw new Error('文件输入框不存在: ' + selector);
+    await this.send('DOM.setFileInputFiles', { files: [filePath], objectId: r.result.objectId });
+    await sleep(150);
+    return true;
   }
 
   async setLocalStorage(values) {
@@ -254,6 +266,7 @@ async function launchBrowser(options = {}) {
   await cdp.send('Page.enable');
   await cdp.send('Runtime.enable');
   await cdp.send('Network.enable');
+  await cdp.send('DOM.enable');
   await cdp.send('Log.enable');
   await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
 

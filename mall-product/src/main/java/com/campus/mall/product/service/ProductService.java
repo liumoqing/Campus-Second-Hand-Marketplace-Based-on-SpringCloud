@@ -7,6 +7,7 @@ import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.api.R;
 import com.campus.mall.common.exception.BizException;
 import com.campus.mall.common.security.UserContext;
+import com.campus.mall.product.client.MessageClient;
 import com.campus.mall.product.client.OrderClient;
 import com.campus.mall.product.client.UserClient;
 import com.campus.mall.product.dto.ProductQuery;
@@ -53,6 +54,7 @@ public class ProductService {
     private final CategoryService categoryService;
     private final UserClient userClient;
     private final OrderClient orderClient;
+    private final MessageClient messageClient;
 
     // ---------------- P1 首页列表 ----------------
 
@@ -109,6 +111,7 @@ public class ProductService {
         }
         ProductDetailVO vo = new ProductDetailVO();
         vo.setId(p.getId());
+        vo.setSellerId(p.getSellerId());
         vo.setTitle(p.getTitle());
         vo.setDescription(p.getDescription());
         vo.setCategoryId(p.getCategoryId());
@@ -239,7 +242,7 @@ public class ProductService {
             throw new BizException(ErrorCode.STATUS_NOT_ALLOWED, "交易中的商品不能编辑");
         }
         if (draft) {
-            validate(dto, true);
+            validatePartial(dto);
         } else {
             validatePartial(dto);
             Long cid = dto.getCategoryId() != null ? dto.getCategoryId() : p.getCategoryId();
@@ -308,7 +311,7 @@ public class ProductService {
         checkPublishPermission(sellerId);
         // 草稿只存了标题时，前端在"发布"这一步把剩下字段一起提交上来，这里先补齐再校验
         if (dto != null) {
-            validate(dto, false);
+            validatePartial(dto);
             applyFields(p, dto);
             if (dto.getImages() != null && !dto.getImages().isEmpty()) {
                 imageMapper.delete(new LambdaQueryWrapper<ProductImage>().eq(ProductImage::getProductId, id));
@@ -536,6 +539,7 @@ public class ProductService {
         for (Product p : products) {
             ProductCardVO c = new ProductCardVO();
             c.setId(p.getId());
+            c.setCategoryId(p.getCategoryId());
             c.setTitle(p.getTitle());
             c.setCoverUrl(p.getCoverUrl());
             c.setPrice(p.getPrice());
@@ -607,8 +611,30 @@ public class ProductService {
         p.setOffShelfReason(StringUtils.hasText(reason) ? reason : "违反平台规则，已被管理员下架");
         productMapper.updateById(p);
         categoryService.clearCache();
+        notifySellerOffShelf(p);
         log.info("管理员强制下架商品：id={}, reason={}", id, p.getOffShelfReason());
         return true;
+    }
+
+    /** 管理员下架后给卖家发站内通知；通知失败不回滚下架，避免治理动作被消息服务拖住。 */
+    private void notifySellerOffShelf(Product p) {
+        try {
+            String reason = StringUtils.hasText(p.getOffShelfReason())
+                    ? p.getOffShelfReason() : "违反平台规则";
+            MessageClient.NoticeBody body = new MessageClient.NoticeBody(
+                    p.getSellerId(),
+                    "SYSTEM",
+                    "商品已被平台下架",
+                    "你的商品「" + p.getTitle() + "」已被管理员下架，原因：" + reason,
+                    String.valueOf(p.getId()),
+                    "PRODUCT");
+            R<Void> r = messageClient.notice(body);
+            if (r == null || r.getCode() != 0) {
+                log.warn("商品下架通知发送失败：productId={}, result={}", p.getId(), r);
+            }
+        } catch (Exception e) {
+            log.warn("商品下架通知发送异常：productId={}, err={}", p.getId(), e.getMessage());
+        }
     }
 
     public Map<String, Object> adminStatistics() {

@@ -132,6 +132,9 @@ export interface OrderItem {
   counterpartId?: string
   counterpartNickname?: string
   buyerId?: string
+  buyerName?: string
+  buyerPhone?: string
+  buyerAddress?: string
   sellerId?: string
   logisticsNo?: string | null
   remark?: string | null

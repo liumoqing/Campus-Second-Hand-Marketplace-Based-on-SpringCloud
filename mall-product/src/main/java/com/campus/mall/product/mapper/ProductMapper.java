@@ -18,9 +18,10 @@ public interface ProductMapper extends BaseMapper<Product> {
             + "AND (lock_order_no IS NULL OR lock_order_no=#{orderNo})")
     int lock(@Param("id") Long id, @Param("version") int version, @Param("orderNo") String orderNo);
 
-    /** P29 回补：按 lock_order_no 幂等回 ON_SALE */
-    @Update("UPDATE t_product SET status='ON_SALE', stock=1, lock_order_no=NULL, version=version+1, "
-            + "update_time=NOW() WHERE lock_order_no=#{orderNo} AND status='LOCKED'")
+    /** P29 回补：取消订单回 LOCKED；未发货退款回 SOLD；都按 lock_order_no 幂等。 */
+    @Update("UPDATE t_product SET status='ON_SALE', stock=1, lock_order_no=NULL, sold_time=NULL, "
+            + "version=version+1, update_time=NOW() "
+            + "WHERE lock_order_no=#{orderNo} AND status IN ('LOCKED','SOLD')")
     int unlock(@Param("orderNo") String orderNo);
 
     /** P30 置已售 */

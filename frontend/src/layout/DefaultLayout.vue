@@ -34,6 +34,12 @@ async function goPublish() {
   router.push('/publish')
 }
 
+function refreshHome() {
+  // Logo 是“回首页并整页刷新”，不是普通 SPA 路由跳转
+  if (route.fullPath === '/') window.location.reload()
+  else window.location.assign('/')
+}
+
 function onCommand(cmd: string) {
   if (cmd === 'logout') {
     user.logout().finally(() => router.push('/'))
@@ -59,7 +65,7 @@ onMounted(async () => {
   <div class="layout">
     <header class="header">
       <div class="header-inner">
-        <router-link to="/" class="logo">晴川二手市场</router-link>
+        <a href="/" class="logo" @click.prevent="refreshHome">晴川二手市场</a>
 
         <div class="search">
           <el-input

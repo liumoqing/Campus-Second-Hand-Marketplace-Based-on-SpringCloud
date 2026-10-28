@@ -49,7 +49,7 @@ public class PaymentService {
     @Transactional(rollbackFor = Exception.class)
     public PaymentVO pay(Long userId, String orderNo) {
         Map<String, Object> order = fetchOrder(orderNo);
-        Long buyerId = longOf(order.get("userId"));
+        Long buyerId = longOf(order.get("buyerId"));
         if (buyerId != null && !buyerId.equals(userId)) {
             throw new BizException(ErrorCode.FORBIDDEN, "只能支付自己的订单");
         }
@@ -136,6 +136,10 @@ public class PaymentService {
         Payment p = findByOrderNo(dto.getOrderNo());
         if (p == null) {
             throw new BizException(ErrorCode.PAY_NOT_FOUND);
+        }
+        // 已退款直接幂等成功；第二次进入时 refundable 已经是 0，不能先做额度校验
+        if ("REFUNDED".equals(p.getStatus())) {
+            return true;
         }
         BigDecimal refundable = p.getAmount().subtract(
                 p.getRefundAmount() == null ? BigDecimal.ZERO : p.getRefundAmount());

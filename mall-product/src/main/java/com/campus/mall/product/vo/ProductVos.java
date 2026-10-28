@@ -30,6 +30,7 @@ public final class ProductVos {
     @Data
     public static class ProductCardVO {
         private Long id;
+        private Long categoryId;
         private String title;
         private String coverUrl;
         private BigDecimal price;
@@ -70,6 +71,8 @@ public final class ProductVos {
     @Data
     public static class ProductDetailVO {
         private Long id;
+        /** 卖家 ID：前端判断本人商品、卖家卡片跳转使用 */
+        private Long sellerId;
         private String title;
         private String description;
         private Long categoryId;

@@ -166,11 +166,14 @@ public class AdminUserService {
     public Object unban(Long operatorId, Long id) {
         User u = requireUser(id);
         checkTarget(operatorId, u);
-        u.setStatus(MallConstants.STATUS_NORMAL);
-        u.setBanUntil(null);
-        u.setBanReason(null);
-        u.setTokenVersion((u.getTokenVersion() == null ? 0 : u.getTokenVersion()) + 1);
-        userMapper.updateById(u);
+        // MyBatis-Plus updateById 默认忽略 null，必须显式 set 才能清空封禁时间/原因
+        userMapper.update(null, Wrappers.<User>lambdaUpdate()
+                .eq(User::getId, id)
+                .set(User::getStatus, MallConstants.STATUS_NORMAL)
+                .set(User::getBanUntil, null)
+                .set(User::getBanReason, null)
+                .set(User::getUpdateTime, LocalDateTime.now())
+                .setSql("token_version = token_version + 1"));
         redis.delete(MallConstants.CACHE_USER_BANNED + id);
         redis.delete(MallConstants.CACHE_USER_TV + id);
         log.info("解封用户：operator={}, userId={}（需重新登录）", operatorId, id);

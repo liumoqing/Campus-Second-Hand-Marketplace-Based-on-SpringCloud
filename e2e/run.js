@@ -80,12 +80,22 @@ async function main() {
     console.warn('[WARN] 固定测试账号不可用：' + fixedLogin.raw);
   }
 
-  // 取一个可用的二级分类（发商品/评论都要用）
-  const tree = await api.get('/category/tree');
-  if (tree.json && tree.json.code === 0 && Array.isArray(tree.json.data)) {
-    const first = tree.json.data.find(c => c.children && c.children.length) || tree.json.data[0];
-    ctx.categoryId = first.children && first.children.length ? first.children[0].id : first.id;
-    ctx.categoryName = first.children && first.children.length ? first.children[0].name : first.name;
+  // 优先取“已有在售商品”的分类，避免踩中遗留的空测试分类
+  const firstProductPage = await api.get('/product/page?pageNum=1&pageSize=1');
+  if (firstProductPage.json && firstProductPage.json.code === 0 && firstProductPage.json.data.records && firstProductPage.json.data.records.length) {
+    const p = firstProductPage.json.data.records[0];
+    if (p.categoryId) {
+      ctx.categoryId = p.categoryId;
+      ctx.categoryName = p.categoryName || '';
+    }
+  }
+  if (!ctx.categoryId) {
+    const tree = await api.get('/category/tree');
+    if (tree.json && tree.json.code === 0 && Array.isArray(tree.json.data)) {
+      const first = tree.json.data.find(c => c.children && c.children.length) || tree.json.data[0];
+      ctx.categoryId = first.children && first.children.length ? first.children[0].id : first.id;
+      ctx.categoryName = first.children && first.children.length ? first.children[0].name : first.name;
+    }
   }
   console.log('测试分类：' + ctx.categoryId + ' ' + (ctx.categoryName || ''));
 

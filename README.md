@@ -108,7 +108,7 @@ scripts\restart-all.cmd           :: 停 → 构建 → 起（改完代码推荐
 ```
 
 设计要点：
-- `stop-all` / `restart-all` / `start-all` 都会**先清端口再启动**，所以不会出现"上次没停干净，这次起不来"。
+- `stop-all` / `restart-all` / `start-all` 都会**先清端口再启动**，所以不会出现“上次没停干净，这次起不来”。
 - 杀进程用的是 `taskkill /PID x /T /F`（连同子进程），不是 `Stop-Process`——后者会留下 4~8MB 的空壳 JVM 继续占端口。
 - 只动本项目的端口，不碰 Nacos(8848/8090)、Sentinel(8858)、Seata(8091)、MySQL(3306)、Redis(6379)。
 ## 4. 演示账号
@@ -140,6 +140,7 @@ scripts\restart-all.cmd           :: 停 → 构建 → 起（改完代码推荐
 |---|---|---|
 | 全部服务端口 → **4399~4405** | 与常见 8080 段冲突（本机 8086 还被 influxd 占用） | 已同步 01/03/04/05 |
 | 图片存储用**本地磁盘**（`LocalFileStorage` + `/files/**`） | 本机未安装 MinIO | 接口契约不变，换 MinIO 只改一个类 |
+| 上传目录默认 `.tmp/uploads`（相对服务工作目录） | Java 的 `user.home` 在本机可能指向不可写目录 | auth/product 从项目根启动时共用同一目录 |
 | 订单卡片用**同步 Feign** 调 `/inner/message/card` | 未安装 RocketMQ | 幂等键与"失败不影响主流程"的约束已实现 |
 | 支付只有 `MockPayChannel` | 课程项目无需真实支付 | `Y3` 回调已按验签实现，可直接接沙箱 |
 

@@ -39,10 +39,6 @@ function Write-Pids($map) {
     ($map | ConvertTo-Json -Depth 4) | Set-Content -Path (Get-PidFile) -Encoding UTF8
 }
 
-# ─────────────────────────────────────────────────────────────
-# 端口/进程清理：解决"改完代码端口被旧进程占着，必须手动杀进程"的问题
-# ─────────────────────────────────────────────────────────────
-
 # 找出监听某端口的 PID。Get-NetTCPConnection 在受限终端/非管理员环境下可能直接报
 # “拒绝访问”，此时回退到 netstat，避免把正在运行的服务误判为空闲。
 function Get-ListeningPid([int]$port) {
@@ -109,7 +105,7 @@ function Stop-ProjectServices([switch]$IncludeFrontend) {
 
     # 1) 命令行匹配：jar 方式与 IDEA 方式（target\classes）都覆盖
     $patterns = @(
-        'mall-(gateway|auth|user|product|order|payment|message)\\[^\s]*target\\',
+        'mall-(gateway|auth|user|product|order|payment|message)\[^\s]*target\',
         'mall-(gateway|auth|user|product|order|payment|message)\\\\target\\\\'
     )
     foreach ($p in (Get-CimInstance Win32_Process -Filter "Name='java.exe'" -ErrorAction SilentlyContinue)) {

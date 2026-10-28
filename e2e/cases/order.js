@@ -95,7 +95,10 @@ module.exports = {
       const sold = ok(await get('/order/page?role=sold&pageNum=1&pageSize=10', { token: alice() }));
       t.assert(sold.total >= 3, '卖家订单数应 ≥3，实际 ' + sold.total);
       t.assert(bought.records.every(r => String(r.buyerId) === '4'), '买到的列表混入他人订单');
-      return `bought=${bought.total} sold=${sold.total}`;
+      const withBuyer = sold.records.find(r => r.buyerName && r.buyerPhone && r.buyerAddress);
+      t.assert(withBuyer, '卖家订单卡缺少买家姓名/电话/地址');
+      t.assert(/^1\d{10}$/.test(String(withBuyer.buyerPhone || '')), '买家电话不完整：' + withBuyer.buyerPhone);
+      return `bought=${bought.total} sold=${sold.total} buyer=${withBuyer.buyerName}`;
     });
 
     await t.test('O3', '订单详情：归属校验 + 待付款返回 expireTime', async () => {

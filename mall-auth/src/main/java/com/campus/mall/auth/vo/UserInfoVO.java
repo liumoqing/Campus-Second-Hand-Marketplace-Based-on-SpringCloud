@@ -16,7 +16,9 @@ public class UserInfoVO {
     private String avatar;
     private String email;
     private String phone;
+    private String province;
     private String city;
+    private String district;
     private String signature;
     private String role;
     private String status;

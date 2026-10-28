@@ -224,6 +224,11 @@ onMounted(() => load(true))
                 对方：{{ o.counterpartNickname || '-' }}
                 <template v-if="o.logisticsNo"> · 物流 {{ o.logisticsNo }}</template>
               </div>
+              <div v-if="role === 'sold'" class="buyer-info">
+                <div><span>买家</span>{{ o.buyerName || o.counterpartNickname || '-' }}</div>
+                <div><span>电话</span>{{ o.buyerPhone || '-' }}</div>
+                <div><span>地址</span>{{ o.buyerAddress || '-' }}</div>
+              </div>
               <div v-if="o.status === 'UNPAID' && o.expireTime" class="countdown">
                 剩余支付时间 {{ remain(o) }}
               </div>
@@ -371,6 +376,20 @@ onMounted(() => load(true))
 }
 .o-amount {
   text-align: right;
+}
+.buyer-info {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #fafbfc;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--mall-text-2);
+}
+.buyer-info span {
+  display: inline-block;
+  width: 38px;
+  color: var(--mall-text-3);
 }
 .o-actions {
   display: flex;

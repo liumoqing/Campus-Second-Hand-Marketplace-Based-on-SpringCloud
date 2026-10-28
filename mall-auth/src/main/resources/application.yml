@@ -28,6 +28,9 @@ mall:
     refresh-token-days: 7
   internal:
     token: mall-internal-2026
+  upload:
+    dir: ${user.dir}/.tmp/uploads
+    base-url: http://127.0.0.1:4402
   captcha:
     enabled: true
     expire-seconds: 120
