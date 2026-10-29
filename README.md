@@ -175,9 +175,10 @@ spring_Cloud_QiMo/
 <img width="2492" height="1274" alt="image-20261029234335217" src="https://github.com/user-attachments/assets/65bb39e6-e241-4043-8dd0-2efe7549142b" />
 
 
-消息页面
+消息页面可实时发送消息
 
-![image-20261029234404757](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234404757.png)
+<img width="2492" height="1274" alt="image-20261029234335217" src="https://github.com/user-attachments/assets/bf805a10-e95c-4244-bb25-9fbd77b6c43e" />
+
 
 个人页面
 
