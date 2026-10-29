@@ -234,58 +234,73 @@ watch(categoryId, revealActiveParent)
 <style scoped>
 .home {
   display: flex;
-  gap: 24px;
-  padding: 24px;
+  gap: 26px;
+  padding: 28px 28px 80px;
   align-items: flex-start;
 }
 .cats {
-  width: 200px;
-  flex: 0 0 200px;
+  width: 232px;
+  flex: 0 0 232px;
   position: sticky;
-  top: 88px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 12px 8px;
-  max-height: calc(100vh - 120px);
+  top: 100px;
+  background: rgba(255, 253, 249, 0.92);
+  border: 1px solid var(--mall-border);
+  border-radius: 22px;
+  padding: 14px 12px;
+  max-height: calc(100vh - 128px);
   overflow: auto;
+  box-shadow: var(--mall-shadow-md);
+  backdrop-filter: blur(16px);
 }
 .cats-title {
-  font-size: 13px;
-  color: var(--mall-text-3);
-  padding: 4px 8px 8px;
+  padding: 4px 10px 14px;
+  color: var(--mall-text);
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
 }
 .cat {
-  padding: 7px 10px;
+  padding: 9px 12px;
+  margin: 2px 0;
   font-size: 14px;
   color: var(--mall-text-2);
-  border-radius: 6px;
+  border-radius: 12px;
   cursor: pointer;
+  transition: color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
 .cat.top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-weight: 620;
 }
 .cat-arrow {
   flex: 0 0 auto;
   font-size: 12px;
   color: var(--mall-text-3);
+  transition: transform 0.18s ease, color 0.18s ease;
 }
 .cat.top.expanded .cat-arrow {
   color: var(--mall-primary);
+  transform: rotate(0deg);
 }
 .cat.sub {
-  padding-left: 22px;
+  margin-left: 16px;
+  padding: 8px 12px;
   font-size: 13px;
+  color: var(--mall-text-3);
 }
 .cat:hover {
-  background: #f5f6f8;
+  color: var(--mall-text);
+  background: var(--mall-surface-muted);
+  transform: translateX(2px);
 }
 .cat.active {
   color: var(--mall-primary);
-  background: var(--mall-primary-light);
-  font-weight: 600;
+  background: linear-gradient(135deg, #fff1e9 0%, #fff8f3 100%);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--mall-primary);
 }
 .content {
   flex: 1;
@@ -295,47 +310,83 @@ watch(categoryId, revealActiveParent)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin: 10px 4px 22px;
   gap: 16px;
 }
 .result {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
 }
 .count {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  color: var(--mall-text-2);
+  background: rgba(255, 253, 249, 0.8);
+  box-shadow: inset 0 0 0 1px var(--mall-border);
   font-size: 12px;
-  color: var(--mall-text-3);
-  font-weight: 400;
-  margin-left: 8px;
+  font-weight: 600;
+  letter-spacing: 0;
+  vertical-align: middle;
 }
 .sort {
   display: flex;
   gap: 4px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 4px;
+  background: rgba(255, 253, 249, 0.86);
+  border: 1px solid var(--mall-border);
+  border-radius: 14px;
+  padding: 5px;
   position: sticky;
-  top: 88px;
+  top: 100px;
+  box-shadow: var(--mall-shadow-sm);
+  backdrop-filter: blur(16px);
 }
 .sort-item {
   font-size: 13px;
   color: var(--mall-text-2);
-  padding: 5px 10px;
-  border-radius: 6px;
+  padding: 7px 11px;
+  border-radius: 10px;
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.sort-item:hover {
+  color: var(--mall-text);
+  background: var(--mall-surface-muted);
 }
 .sort-item.active {
-  background: var(--mall-primary);
+  background: linear-gradient(135deg, #f58258 0%, var(--mall-primary) 100%);
   color: #fff;
+  box-shadow: 0 7px 16px rgba(242, 107, 63, 0.2);
 }
 .guest-tip {
-  margin-bottom: 14px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(239, 179, 95, 0.28);
+  border-radius: 15px;
+  background: rgba(255, 249, 237, 0.8);
 }
 .footer {
   text-align: center;
-  padding: 28px 0 12px;
+  padding: 34px 0 12px;
   color: var(--mall-text-3);
   font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .home {
+    gap: 18px;
+    padding: 20px 18px 64px;
+  }
+  .cats {
+    width: 210px;
+    flex-basis: 210px;
+  }
+  .result {
+    font-size: 23px;
+  }
 }
 </style>

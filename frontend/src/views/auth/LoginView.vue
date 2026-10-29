@@ -92,30 +92,65 @@ onMounted(refreshCaptcha)
 
 <style scoped>
 .auth-page {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
-  background: linear-gradient(135deg, #fff3ec 0%, #f7f8fa 60%);
+  background:
+    radial-gradient(circle at 18% 18%, rgba(242, 107, 63, 0.2), transparent 28rem),
+    radial-gradient(circle at 82% 78%, rgba(239, 179, 95, 0.18), transparent 24rem),
+    linear-gradient(145deg, #fbf7f0 0%, #f3eee5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 32px 18px;
+}
+.auth-page::before,
+.auth-page::after {
+  position: absolute;
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+.auth-page::before {
+  top: -140px;
+  right: 12%;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgba(242, 107, 63, 0.12);
+  box-shadow: 0 0 0 42px rgba(242, 107, 63, 0.025), 0 0 0 84px rgba(242, 107, 63, 0.018);
+}
+.auth-page::after {
+  left: 10%;
+  bottom: -90px;
+  width: 230px;
+  height: 230px;
+  background: rgba(239, 179, 95, 0.08);
 }
 .auth-card {
-  width: 380px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 32px 28px 24px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  padding: 38px 34px 28px;
+  background: rgba(255, 253, 249, 0.88);
+  box-shadow: 0 28px 80px rgba(72, 55, 37, 0.16);
+  backdrop-filter: blur(22px);
 }
 .brand {
-  font-size: 22px;
+  font-size: 28px;
+  font-weight: 820;
+  letter-spacing: -0.055em;
   margin: 0;
-  color: var(--mall-primary);
+  color: var(--mall-text);
   text-align: center;
 }
 .slogan {
   text-align: center;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--mall-text-3);
-  margin: 6px 0 22px;
+  margin: 8px 0 28px;
+  letter-spacing: 0.08em;
 }
 .captcha-row {
   display: flex;
@@ -126,16 +161,19 @@ onMounted(refreshCaptcha)
   height: 40px;
   width: 110px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 11px;
   border: 1px solid var(--mall-border);
   object-fit: cover;
 }
 .submit {
   width: 100%;
-  margin-top: 4px;
+  height: 46px;
+  margin-top: 8px;
+  border-radius: 13px;
+  font-size: 15px;
 }
 .links {
-  margin-top: 14px;
+  margin-top: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,7 +182,8 @@ onMounted(refreshCaptcha)
 }
 .tip {
   text-align: center;
-  margin-top: 8px;
+  margin-top: 12px;
   font-size: 12px;
+  opacity: 0.82;
 }
 </style>

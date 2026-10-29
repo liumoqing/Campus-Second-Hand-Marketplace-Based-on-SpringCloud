@@ -7,7 +7,7 @@ import { useUserStore } from '@/stores/user'
 import ProductCardItem from '@/components/ProductCardItem.vue'
 import AddressFormDialog from '@/components/AddressFormDialog.vue'
 import { regions } from '@/data/regions'
-import type { AddressItem, ProductCard } from '@/types'
+import type { AddressItem, OrderItem, ProductCard } from '@/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -19,6 +19,7 @@ const tab = ref<TabKey>(((route.params.tab as TabKey) || 'published') as TabKey)
 const stats = ref<Record<string, number>>({})
 const products = ref<ProductCard[]>([])
 const favorites = ref<ProductCard[]>([])
+const orders = ref<OrderItem[]>([])
 const addresses = ref<AddressItem[]>([])
 const reviews = ref<any[]>([])
 const loading = ref(false)
@@ -43,6 +44,16 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: 'reviews', label: '我的评价' }
 ]
 
+const orderStatusText: Record<string, string> = {
+  UNPAID: '待付款',
+  UNSHIPPED: '待发货',
+  UNRECEIVED: '待收货',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  REFUNDING: '退款中',
+  REFUNDED: '已退款'
+}
+
 const profile = computed(() => user.profile)
 const profileLocation = computed(() => {
   const p = profile.value
@@ -58,6 +69,7 @@ async function loadTab() {
   try {
     products.value = []
     favorites.value = []
+    orders.value = []
     addresses.value = []
     reviews.value = []
     if (tab.value === 'published' || tab.value === 'drafts') {
@@ -76,7 +88,8 @@ async function loadTab() {
       const page = await orderApi.reviewMine()
       reviews.value = page.records
     } else if (tab.value === 'sold' || tab.value === 'bought') {
-      router.push({ path: '/orders', query: { tab: 'ALL' } })
+      const page = await orderApi.page({ role: tab.value, pageNum: 1, pageSize: 40 })
+      orders.value = page.records
     }
   } finally {
     loading.value = false
@@ -87,6 +100,14 @@ function switchTab(k: TabKey) {
   tab.value = k
   router.replace(`/mine/${k}`)
 }
+
+watch(
+  () => route.params.tab,
+  (value) => {
+    const next = ((value as TabKey) || 'published') as TabKey
+    if (tabs.some((t) => t.key === next) && next !== tab.value) tab.value = next
+  }
+)
 
 function pickAvatar() {
   if (!avatarUploading.value) avatarInput.value?.click()
@@ -225,11 +246,22 @@ onMounted(async () => {
           {{ profile?.signature || '点击填写个性签名…' }}
         </div>
         <div v-else class="sign-edit">
-          <el-input v-model="signature" maxlength="200" show-word-limit placeholder="一句话介绍自己" />
-          <el-input v-model="nickname" maxlength="20" placeholder="昵称" class="nick-input" />
-          <el-cascader v-model="profileRegion" :options="regions" :props="{ value: 'value', label: 'label' }" placeholder="省 / 市 / 区" class="region-input" />
-          <el-button size="small" type="primary" @click="saveSignature">保存</el-button>
-          <el-button size="small" @click="editingSign = false">取消</el-button>
+          <div class="sign-field sign-field-full">
+            <span class="field-label">个性签名 <small>展示在个人主页</small></span>
+            <el-input v-model="signature" maxlength="200" show-word-limit placeholder="一句话介绍自己" />
+          </div>
+          <div class="sign-field">
+            <span class="field-label">昵称 <small>其他用户看到的名字</small></span>
+            <el-input v-model="nickname" maxlength="20" placeholder="请输入昵称" class="nick-input" />
+          </div>
+          <div class="sign-field">
+            <span class="field-label">所在地区 <small>用于同城展示</small></span>
+            <el-cascader v-model="profileRegion" :options="regions" :props="{ value: 'value', label: 'label' }" placeholder="省 / 市 / 区" class="region-input" />
+          </div>
+          <div class="sign-actions">
+            <el-button size="small" @click="editingSign = false">取消</el-button>
+            <el-button size="small" type="primary" @click="saveSignature">保存资料</el-button>
+          </div>
         </div>
 
         <div class="p-stats">
@@ -245,11 +277,11 @@ onMounted(async () => {
     <div class="body">
       <aside class="side">
         <div class="side-item" :class="{ active: tab === 'published' }" @click="switchTab('published')">我的</div>
-        <div class="side-item" @click="router.push('/orders')">我的交易</div>
+        <div class="side-item" :class="{ active: tab === 'sold' || tab === 'bought' }" @click="switchTab('sold')">我的交易</div>
         <div class="side-sub">
           <div :class="{ active: tab === 'published' }" @click="switchTab('published')">我发布的</div>
-          <div @click="router.push('/orders?tab=ALL')">我卖出的</div>
-          <div @click="router.push('/orders?tab=ALL')">我买到的</div>
+          <div :class="{ active: tab === 'sold' }" @click="switchTab('sold')">我卖出的</div>
+          <div :class="{ active: tab === 'bought' }" @click="switchTab('bought')">我买到的</div>
         </div>
         <div class="side-item" :class="{ active: tab === 'favorite' }" @click="switchTab('favorite')">我的收藏</div>
         <div class="side-item" :class="{ active: tab === 'address' }" @click="switchTab('address')">收货地址</div>
@@ -274,6 +306,48 @@ onMounted(async () => {
             v-if="!(tab === 'favorite' ? favorites : products).length"
             :description="tab === 'drafts' ? '草稿箱是空的' : tab === 'favorite' ? '还没有收藏任何商品' : '还没有发布商品'"
           />
+        </template>
+
+        <!-- 交易（在个人中心右侧直接展示，不跳订单页） -->
+        <template v-else-if="tab === 'sold' || tab === 'bought'">
+          <div class="mine-order-panel">
+            <div class="mine-order-head">
+              <div>
+                <h3>{{ tab === 'sold' ? '我卖出的' : '我买到的' }}</h3>
+                <span class="mall-sub">{{ tab === 'sold' ? '在这里查看买家与成交进度' : '在这里查看卖家与购买进度' }}</span>
+              </div>
+              <span class="order-count">{{ orders.length }} 笔</span>
+            </div>
+
+            <div v-for="o in orders" :key="o.orderNo" class="mine-order-row">
+              <div class="mine-order-top">
+                <span class="order-no">{{ o.orderNo }}</span>
+                <el-tag size="small" :type="o.status === 'COMPLETED' ? 'success' : o.status === 'REFUNDED' ? 'danger' : 'warning'">
+                  {{ orderStatusText[o.status] || o.status }}
+                </el-tag>
+              </div>
+              <div class="mine-order-main">
+                <img v-if="o.productCover" :src="o.productCover" alt="" class="mine-order-cover" />
+                <div class="mine-order-info">
+                  <div class="mine-order-title" @click="router.push(`/product/${o.productId}`)">{{ o.productTitle }}</div>
+                  <div class="mall-sub">
+                    {{ tab === 'sold' ? '买家' : '卖家' }}：{{ o.counterpartNickname || '-' }}
+                    <template v-if="o.logisticsNo"> · 物流 {{ o.logisticsNo }}</template>
+                  </div>
+                  <div v-if="tab === 'sold' && o.buyerName" class="buyer-inline">
+                    收货：{{ o.buyerName }} {{ o.buyerPhone }} · {{ o.buyerAddress }}
+                  </div>
+                  <div class="mall-sub">下单时间：{{ o.createTime || '-' }}</div>
+                </div>
+                <div class="mine-order-amount">
+                  <div class="mall-price">¥{{ o.payAmount }}</div>
+                  <div class="mall-sub">含运费 ¥{{ o.freight }}</div>
+                </div>
+              </div>
+            </div>
+
+            <el-empty v-if="!orders.length" :description="tab === 'sold' ? '还没有卖出记录' : '还没有购买记录'" />
+          </div>
         </template>
 
         <!-- 地址 -->
@@ -317,14 +391,20 @@ onMounted(async () => {
 
 <style scoped>
 .mine {
-  padding: 24px;
+  padding: 28px;
 }
 .profile {
   display: flex;
   gap: 20px;
-  padding: 20px 24px;
+  padding: 24px 28px;
   align-items: flex-start;
   position: relative;
+  overflow: hidden;
+  border-color: rgba(242, 107, 63, 0.12);
+  background:
+    radial-gradient(circle at 92% 10%, rgba(242, 107, 63, 0.12), transparent 20rem),
+    linear-gradient(135deg, rgba(255, 253, 249, 0.98), rgba(255, 246, 240, 0.94));
+  box-shadow: 0 16px 42px rgba(72, 55, 37, 0.08);
 }
 .avatar-edit {
   width: 80px;
@@ -334,6 +414,7 @@ onMounted(async () => {
   position: relative;
   overflow: hidden;
   cursor: pointer;
+  box-shadow: 0 10px 26px rgba(72, 55, 37, 0.13);
 }
 .avatar-edit input { display: none; }
 .avatar-mask {
@@ -360,32 +441,65 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 23px;
+  font-weight: 780;
+  letter-spacing: -0.035em;
 }
 .p-city {
   margin: 4px 0 10px;
 }
 .sign-box {
-  border: 1px dashed var(--mall-border);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border: 1px dashed rgba(242, 107, 63, 0.2);
+  border-radius: 12px;
+  padding: 10px 13px;
   font-size: 13px;
   color: var(--mall-text-2);
   cursor: pointer;
   min-height: 40px;
-  background: #fafbfc;
+  background: rgba(255, 253, 249, 0.72);
 }
 .sign-edit {
+  display: grid;
+  grid-template-columns: minmax(170px, 0.72fr) minmax(240px, 1.28fr);
+  gap: 12px;
+  align-items: end;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--mall-border);
+  border-radius: 15px;
+  background: rgba(255, 253, 249, 0.82);
+}
+.sign-field {
   display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.sign-field-full,
+.sign-actions {
+  grid-column: 1 / -1;
+}
+.field-label {
+  color: var(--mall-text-2);
+  font-size: 12px;
+  font-weight: 650;
+}
+.field-label small {
+  margin-left: 5px;
+  color: var(--mall-text-3);
+  font-size: 11px;
+  font-weight: 400;
+}
+.sign-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
-  align-items: center;
-  flex-wrap: wrap;
+  padding-top: 2px;
 }
 .nick-input {
-  width: 160px;
+  width: 100%;
 }
-.region-input { width: 260px; }
+.region-input { width: 100%; }
 .p-city { cursor: pointer; }
 .p-stats {
   display: flex;
@@ -396,7 +510,7 @@ onMounted(async () => {
 }
 .p-stats b {
   color: var(--mall-text);
-  font-size: 16px;
+  font-size: 18px;
   margin-right: 4px;
 }
 .p-edit {
@@ -407,21 +521,24 @@ onMounted(async () => {
 .body {
   display: flex;
   gap: 20px;
-  margin-top: 16px;
+  margin-top: 20px;
   align-items: flex-start;
 }
 .side {
-  width: 180px;
-  flex: 0 0 180px;
-  background: #fff;
-  border-radius: 8px;
-  padding: 10px 8px;
+  width: 190px;
+  flex: 0 0 190px;
+  background: rgba(255, 253, 249, 0.9);
+  border: 1px solid var(--mall-border);
+  border-radius: 20px;
+  padding: 12px 10px;
   position: sticky;
-  top: 88px;
+  top: 100px;
+  box-shadow: var(--mall-shadow-sm);
+  backdrop-filter: blur(14px);
 }
 .side-item {
-  padding: 9px 12px;
-  border-radius: 6px;
+  padding: 10px 13px;
+  border-radius: 11px;
   font-size: 14px;
   cursor: pointer;
   color: var(--mall-text-2);
@@ -454,7 +571,7 @@ onMounted(async () => {
 .grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  gap: 20px;
 }
 .grid-item {
   display: flex;
@@ -464,6 +581,101 @@ onMounted(async () => {
 .item-ops {
   display: flex;
   gap: 6px;
+}
+.mine-order-panel {
+  overflow: hidden;
+  border: 1px solid var(--mall-border);
+  border-radius: 22px;
+  background: rgba(255, 253, 249, 0.9);
+  box-shadow: var(--mall-shadow-sm);
+}
+.mine-order-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--mall-border);
+  background: linear-gradient(135deg, rgba(255, 247, 242, 0.9), rgba(255, 253, 249, 0.7));
+}
+.mine-order-head h3 {
+  margin: 0 0 3px;
+  font-size: 19px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+}
+.order-count {
+  flex: 0 0 auto;
+  padding: 5px 11px;
+  border-radius: 999px;
+  color: var(--mall-primary);
+  background: var(--mall-primary-light);
+  font-size: 12px;
+  font-weight: 700;
+}
+.mine-order-row {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--mall-border);
+  transition: background 0.18s ease;
+}
+.mine-order-row:last-of-type {
+  border-bottom: 0;
+}
+.mine-order-row:hover {
+  background: rgba(255, 247, 242, 0.58);
+}
+.mine-order-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 11px;
+}
+.order-no {
+  color: var(--mall-text-3);
+  font-size: 12px;
+}
+.mine-order-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.mine-order-cover {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: var(--mall-surface-muted);
+}
+.mine-order-info {
+  flex: 1;
+  min-width: 0;
+}
+.mine-order-title {
+  margin-bottom: 4px;
+  overflow: hidden;
+  color: var(--mall-text);
+  font-size: 15px;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.mine-order-title:hover {
+  color: var(--mall-primary);
+}
+.buyer-inline {
+  margin: 5px 0;
+  color: var(--mall-text-2);
+  font-size: 12px;
+}
+.mine-order-amount {
+  flex: 0 0 auto;
+  text-align: right;
+}
+.mine-order-amount .mall-price {
+  font-size: 18px;
 }
 .addr-head {
   display: flex;
@@ -476,11 +688,12 @@ onMounted(async () => {
   font-size: 15px;
 }
 .addr {
-  background: #fff;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  background: rgba(255, 253, 249, 0.92);
+  border-radius: 18px;
+  padding: 17px 19px;
+  margin-bottom: 14px;
   border: 1px solid var(--mall-border);
+  box-shadow: var(--mall-shadow-sm);
 }
 .addr-ops {
   margin-top: 6px;
@@ -488,8 +701,10 @@ onMounted(async () => {
   gap: 10px;
 }
 .review {
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  padding: 17px 19px;
+  margin-bottom: 14px;
+  border-radius: 18px;
+  box-shadow: var(--mall-shadow-sm);
 }
 .r-head {
   display: flex;

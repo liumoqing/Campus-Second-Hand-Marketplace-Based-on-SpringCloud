@@ -7,6 +7,7 @@ import { useUserStore } from '@/stores/user'
 import SellerCardComp from '@/components/SellerCard.vue'
 import StarRating from '@/components/StarRating.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import { conditionLabel } from '@/utils/product'
 import type { CommentItem, ProductDetail } from '@/types'
 
 const route = useRoute()
@@ -188,7 +189,7 @@ onMounted(load)
           <div class="price-row">
             <span class="mall-price price">¥{{ detail.price }}</span>
             <span v-if="detail.originalPrice" class="origin">原价 ¥{{ detail.originalPrice }}</span>
-            <span class="cond">{{ detail.conditionLevel ? `${detail.conditionLevel}成新` : '成色未填' }}</span>
+            <span class="cond">{{ conditionLabel(detail.conditionLevel) || '成色未填' }}</span>
           </div>
           <div class="chips">
             <span class="chip">{{ detail.freightHint || '运费见下单页' }}</span>

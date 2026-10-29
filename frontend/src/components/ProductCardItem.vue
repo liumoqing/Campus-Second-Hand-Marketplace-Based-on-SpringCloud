@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProductCard } from '@/types'
+import { conditionLabel } from '@/utils/product'
 
 defineProps<{ item: ProductCard }>()
 const emit = defineEmits<{ (e: 'select', item: ProductCard): void }>()
@@ -16,6 +17,7 @@ function freightText(mode?: string) {
     <div class="cover">
       <img v-if="item.coverUrl" :src="item.coverUrl" :alt="item.title" loading="lazy" />
       <div v-else class="cover-empty">暂无图片</div>
+      <span v-if="item.conditionLevel" class="condition-chip">{{ conditionLabel(item.conditionLevel) }}</span>
       <span v-if="item.status === 'SOLD'" class="badge">已售出</span>
     </div>
     <div class="body">
@@ -27,7 +29,7 @@ function freightText(mode?: string) {
       <div class="meta">
         <span>{{ item.city || '未知地区' }}</span>
         <span>·</span>
-        <span>{{ item.conditionLevel ? `${item.conditionLevel}成新` : '成色未填' }}</span>
+        <span>{{ conditionLabel(item.conditionLevel) || '成色未填' }}</span>
         <span>·</span>
         <span>{{ freightText(item.freightMode) }}</span>
       </div>
@@ -45,21 +47,38 @@ function freightText(mode?: string) {
 .card {
   overflow: hidden;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
+  border-color: rgba(58, 49, 39, 0.08);
+  background: rgba(255, 253, 249, 0.96);
+  box-shadow: 0 8px 26px rgba(72, 55, 37, 0.055);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
 }
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-6px);
+  border-color: rgba(242, 107, 63, 0.18);
+  box-shadow: 0 20px 42px rgba(72, 55, 37, 0.13);
 }
 .cover {
   position: relative;
-  background: #f2f3f5;
+  overflow: hidden;
+  background: linear-gradient(145deg, #f6f1e9, #f1ece3);
+}
+.cover::after {
+  position: absolute;
+  inset: auto 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(36, 35, 31, 0.12));
+  content: '';
+  pointer-events: none;
 }
 .cover img {
   width: 100%;
   display: block;
   aspect-ratio: 1 / 1;
   object-fit: cover;
+  transition: transform 0.42s cubic-bezier(0.2, 0.72, 0.25, 1);
+}
+.card:hover .cover img {
+  transform: scale(1.035);
 }
 .cover-empty {
   aspect-ratio: 1 / 1;
@@ -72,33 +91,52 @@ function freightText(mode?: string) {
 .badge {
   position: absolute;
   top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.6);
+  right: 8px;
+  z-index: 2;
+  background: rgba(36, 35, 31, 0.72);
   color: #fff;
   font-size: 12px;
-  padding: 2px 8px;
-  border-radius: 10px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  backdrop-filter: blur(8px);
+}
+.condition-chip {
+  position: absolute;
+  left: 9px;
+  bottom: 9px;
+  z-index: 2;
+  padding: 3px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(36, 35, 31, 0.36);
+  font-size: 11px;
+  font-weight: 650;
+  backdrop-filter: blur(10px);
 }
 .body {
-  padding: 10px 12px 12px;
+  padding: 13px 14px 14px;
 }
 .title {
-  font-size: 14px;
-  line-height: 1.45;
+  font-size: 15px;
+  font-weight: 680;
+  line-height: 1.5;
   height: 40px;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  letter-spacing: -0.015em;
 }
 .price-row {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 7px;
 }
 .mall-price {
-  font-size: 18px;
+  font-size: 21px;
+  line-height: 1.2;
 }
 .origin {
   font-size: 12px;
@@ -106,7 +144,7 @@ function freightText(mode?: string) {
   text-decoration: line-through;
 }
 .meta {
-  margin-top: 4px;
+  margin-top: 7px;
   font-size: 12px;
   color: var(--mall-text-3);
   display: flex;
@@ -114,7 +152,9 @@ function freightText(mode?: string) {
   flex-wrap: wrap;
 }
 .seller {
-  margin-top: 8px;
+  margin-top: 11px;
+  padding-top: 10px;
+  border-top: 1px solid var(--mall-border);
   display: flex;
   align-items: center;
   gap: 6px;

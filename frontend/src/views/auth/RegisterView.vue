@@ -154,25 +154,57 @@ onMounted(refreshCaptcha)
 
 <style scoped>
 .auth-page {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
-  background: linear-gradient(135deg, #fff3ec 0%, #f7f8fa 60%);
+  background:
+    radial-gradient(circle at 16% 16%, rgba(242, 107, 63, 0.18), transparent 28rem),
+    radial-gradient(circle at 84% 80%, rgba(239, 179, 95, 0.16), transparent 24rem),
+    linear-gradient(145deg, #fbf7f0 0%, #f3eee5 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px 0;
 }
+.auth-page::before,
+.auth-page::after {
+  position: absolute;
+  border-radius: 50%;
+  content: '';
+  pointer-events: none;
+}
+.auth-page::before {
+  top: -140px;
+  right: 10%;
+  width: 360px;
+  height: 360px;
+  border: 1px solid rgba(242, 107, 63, 0.12);
+  box-shadow: 0 0 0 42px rgba(242, 107, 63, 0.025), 0 0 0 84px rgba(242, 107, 63, 0.018);
+}
+.auth-page::after {
+  left: 8%;
+  bottom: -100px;
+  width: 240px;
+  height: 240px;
+  background: rgba(239, 179, 95, 0.08);
+}
 .auth-card {
-  width: 440px;
-  background: #fff;
-  border-radius: 12px;
-  padding: 28px 28px 20px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
+  width: min(480px, calc(100% - 32px));
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 28px;
+  padding: 34px 34px 24px;
+  background: rgba(255, 253, 249, 0.9);
+  box-shadow: 0 28px 80px rgba(72, 55, 37, 0.16);
+  backdrop-filter: blur(22px);
 }
 .brand {
-  font-size: 20px;
-  margin: 0 0 18px;
+  font-size: 27px;
+  letter-spacing: -0.05em;
+  margin: 0 0 22px;
   text-align: center;
-  color: var(--mall-primary);
+  color: var(--mall-text);
 }
 .avatar-block {
   display: flex;
@@ -185,7 +217,9 @@ onMounted(refreshCaptcha)
   width: 84px;
   height: 84px;
   border-radius: 50%;
-  border: 1px dashed var(--mall-border);
+  border: 1px dashed rgba(242, 107, 63, 0.35);
+  background: var(--mall-primary-soft);
+  box-shadow: 0 10px 28px rgba(242, 107, 63, 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -193,7 +227,6 @@ onMounted(refreshCaptcha)
   overflow: hidden;
   font-size: 12px;
   color: var(--mall-text-3);
-  background: #fafbfc;
 }
 .avatar img {
   width: 100%;
@@ -209,14 +242,18 @@ onMounted(refreshCaptcha)
   height: 40px;
   width: 110px;
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: 11px;
   border: 1px solid var(--mall-border);
 }
 .submit {
   width: 100%;
+  height: 46px;
+  margin-top: 6px;
+  border-radius: 13px;
+  font-size: 15px;
 }
 .links {
-  margin-top: 12px;
+  margin-top: 18px;
   text-align: center;
   font-size: 13px;
 }

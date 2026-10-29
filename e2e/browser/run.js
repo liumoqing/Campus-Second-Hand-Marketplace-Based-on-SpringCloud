@@ -358,6 +358,26 @@ async function main() {
       return '已整页刷新到首页';
     });
 
+    await browserTest(cdp, 'B-A9', '全局视觉主题与桌面布局生效', async () => {
+      await setAuth(cdp, bob);
+      await visit(cdp, '/', ['晴川二手市场', '全部分类']);
+      const primary = await cdp.evaluate(`return getComputedStyle(document.documentElement).getPropertyValue('--mall-primary').trim();`);
+      const logoImage = await cdp.evaluate(`return document.querySelector('.logo-mark img')?.getAttribute('src') || '';`);
+      const cardRadius = await cdp.evaluate(`return parseFloat(getComputedStyle(document.querySelector('.card')).borderRadius) || 0;`);
+      const inputRight = await cdp.evaluate(`return document.querySelector('.search .el-input__wrapper').getBoundingClientRect().right;`);
+      const buttonLeft = await cdp.evaluate(`return document.querySelector('.search-submit').getBoundingClientRect().left;`);
+      const buttonRight = await cdp.evaluate(`return document.querySelector('.search-submit').getBoundingClientRect().right;`);
+      const searchRight = await cdp.evaluate(`return document.querySelector('.search').getBoundingClientRect().right;`);
+      const noHorizontalOverflow = await cdp.evaluate(`return document.documentElement.scrollWidth <= window.innerWidth + 1;`);
+      if (String(primary).toLowerCase() !== '#f26b3f') throw new Error('品牌主色未生效：' + primary);
+      if (!String(logoImage).includes('/brand/qingchuan-logo.png')) throw new Error('学校 Logo 未渲染：' + logoImage);
+      if (cardRadius < 16) throw new Error('商品卡圆角未应用：' + cardRadius);
+      if (inputRight > buttonLeft + 1) throw new Error(`搜索输入区与按钮重叠：${inputRight} > ${buttonLeft}`);
+      if (buttonRight > searchRight + 1) throw new Error(`搜索按钮超出容器：${buttonRight} > ${searchRight}`);
+      if (!noHorizontalOverflow) throw new Error('桌面首页出现横向溢出');
+      return '暖色主题、学校 Logo、大圆角商品卡和桌面布局均生效';
+    });
+
     // ---------------- U 我的 ----------------
     suite('U 我的');
 
@@ -436,6 +456,9 @@ async function main() {
         await setAuth(cdp, alice);
         await visit(cdp, '/mine', ['编辑资料']);
         if (!(await cdp.clickText('编辑资料', 'button'))) throw new Error('编辑资料按钮不可点击');
+        for (const label of ['个性签名', '昵称', '所在地区']) {
+          await cdp.waitForText(label, 5000);
+        }
         await cdp.waitFor(`document.querySelector('.sign-edit .region-input')`, 6000, '资料地区级联');
         if (!(await cdp.clickSelector('.sign-edit .region-input'))) throw new Error('资料地区级联不可点击');
         await cdp.waitForText('浙江省', 8000);
@@ -451,6 +474,21 @@ async function main() {
         for (const k of ['province', 'city', 'district']) if (original.json.data[k]) restore[k] = original.json.data[k];
         try { await api('PUT', '/user/profile', restore, alice.accessToken); } catch (_) {}
       }
+    });
+
+    await browserTest(cdp, 'B-U8', '我卖出的/我买到的在个人中心右侧内嵌展示', async () => {
+      await setAuth(cdp, alice);
+      await visit(cdp, '/mine/published', ['我的交易', '我卖出的', '我买到的']);
+      if (!(await cdp.clickText('我卖出的', '.side-sub div'))) throw new Error('“我卖出的”菜单不可点击');
+      await cdp.waitFor(`location.pathname === '/mine/sold'`, 8000, '右侧切换到我卖出的');
+      await cdp.waitFor(`document.querySelector('.mine-order-panel')`, 8000, '我卖出的内嵌面板');
+      if (!(await cdp.bodyText()).includes('在这里查看买家与成交进度')) throw new Error('我卖出的右侧内容未展示');
+      if (!(await cdp.clickText('我买到的', '.side-sub div'))) throw new Error('“我买到的”菜单不可点击');
+      await cdp.waitFor(`location.pathname === '/mine/bought'`, 8000, '右侧切换到我买到的');
+      await cdp.waitFor(`document.querySelector('.mine-order-panel')`, 8000, '我买到的内嵌面板');
+      const path = await cdp.path();
+      if (path.startsWith('/orders')) throw new Error('交易菜单仍跳转到订单页');
+      return '交易子项均在个人中心右侧内嵌展示，未跳转订单页';
     });
 
     // ---------------- P 商品 ----------------
@@ -498,7 +536,13 @@ async function main() {
       const body = await cdp.bodyText();
       if (!body.includes('添加图片')) throw new Error('图片上传入口缺失');
       if (!body.includes('发布') || !body.includes('存草稿')) throw new Error('发布/存草稿按钮缺失');
-      return '表单、图片入口、发布与存草稿按钮齐全';
+      if (!(await cdp.clickSelector('.grid-3 .el-select__wrapper'))) throw new Error('成色选择器不可点击');
+      await cdp.waitForText('全新', 5000);
+      if (!(await cdp.clickText('全新', '.el-select-dropdown__item'))) throw new Error('成色选项缺少“全新”');
+      await sleep(250);
+      const conditionText = await cdp.evaluate(`return document.querySelector('.grid-3 .el-select')?.innerText || '';`);
+      if (!conditionText.includes('全新')) throw new Error('选择“全新”后未回填');
+      return '表单、图片入口、成色“全新”选项、发布与存草稿按钮齐全';
     });
 
     await browserTest(cdp, 'B-P5', '存草稿通过浏览器实际成功', async () => {

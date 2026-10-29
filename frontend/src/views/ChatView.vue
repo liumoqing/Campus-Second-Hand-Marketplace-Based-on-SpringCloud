@@ -312,38 +312,48 @@ onMounted(async () => {
 
 <style scoped>
 .chat {
-  padding: 16px 24px;
+  padding: 20px 28px;
   display: flex;
-  gap: 16px;
-  height: calc(100vh - 96px);
+  gap: 18px;
+  height: calc(100vh - 116px);
 }
 .conv-list {
-  width: 280px;
-  flex: 0 0 280px;
-  background: #fff;
-  border-radius: 8px;
+  width: 300px;
+  flex: 0 0 300px;
+  background: rgba(255, 253, 249, 0.92);
+  border: 1px solid var(--mall-border);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: var(--mall-shadow-md);
+  backdrop-filter: blur(16px);
 }
 .conv-search {
-  padding: 10px;
+  padding: 14px 14px 10px;
 }
 .conv {
   display: flex;
   gap: 10px;
-  padding: 10px 12px;
+  margin: 3px 10px;
+  padding: 11px 12px;
+  border-radius: 14px;
   cursor: pointer;
   align-items: center;
+  transition: background 0.18s ease, transform 0.18s ease;
 }
 .conv:hover {
-  background: #f7f8fa;
+  background: var(--mall-surface-muted);
+  transform: translateX(2px);
 }
 .conv.active {
-  background: var(--mall-primary-light);
+  background: linear-gradient(135deg, #fff1e9 0%, #fff8f3 100%);
+  box-shadow: inset 3px 0 0 var(--mall-primary);
 }
 .conv.sys {
+  margin-bottom: 7px;
   border-bottom: 1px solid var(--mall-border);
+  border-radius: 14px 14px 0 0;
   color: var(--mall-text-2);
   font-weight: 600;
 }
@@ -396,20 +406,24 @@ onMounted(async () => {
 .panel {
   flex: 1;
   min-width: 0;
-  background: #fff;
-  border-radius: 8px;
+  background: rgba(255, 253, 249, 0.94);
+  border: 1px solid var(--mall-border);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: var(--mall-shadow-md);
+  backdrop-filter: blur(16px);
 }
 .panel-head {
-  height: 48px;
+  height: 58px;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--mall-border);
   font-weight: 600;
+  font-size: 15px;
 }
 .online-text {
   font-size: 12px;
@@ -423,8 +437,10 @@ onMounted(async () => {
 .msg-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
-  background: #fafbfc;
+  padding: 16px 20px;
+  background:
+    radial-gradient(circle at 80% 5%, rgba(239, 179, 95, 0.08), transparent 20rem),
+    linear-gradient(180deg, #fbf8f3 0%, #f8f5ef 100%);
 }
 .load-more {
   text-align: center;
@@ -441,15 +457,15 @@ onMounted(async () => {
   max-width: 60%;
   text-align: left;
   background: #fff;
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 16px;
+  padding: 9px 13px;
   font-size: 14px;
   line-height: 1.55;
   word-break: break-word;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 6px 18px rgba(72, 55, 37, 0.055);
 }
 .msg.mine .bubble {
-  background: var(--mall-primary);
+  background: linear-gradient(135deg, #f6855c 0%, var(--mall-primary) 100%);
   color: #fff;
 }
 .img-bubble {
@@ -460,13 +476,19 @@ onMounted(async () => {
 .card-bubble {
   display: flex;
   gap: 10px;
-  width: 260px;
+  width: 280px;
   cursor: pointer;
-  background: #fff;
+  background: rgba(255, 253, 249, 0.98);
   color: var(--mall-text);
   border: 1px solid var(--mall-border);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 16px;
+  padding: 10px;
+  box-shadow: 0 12px 28px rgba(72, 55, 37, 0.08);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.card-bubble:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px rgba(72, 55, 37, 0.12);
 }
 .card-bubble img {
   width: 64px;
@@ -475,7 +497,7 @@ onMounted(async () => {
   border-radius: 6px;
 }
 .card-bubble.order {
-  width: 280px;
+  width: 300px;
   align-items: center;
 }
 .order-cover-placeholder {
@@ -513,9 +535,10 @@ onMounted(async () => {
 .input-bar {
   display: flex;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border-top: 1px solid var(--mall-border);
   align-items: flex-end;
+  background: rgba(255, 253, 249, 0.95);
 }
 .panel-empty {
   flex: 1;
@@ -526,17 +549,23 @@ onMounted(async () => {
 .notice-list {
   flex: 1;
   overflow-y: auto;
-  padding: 12px 16px;
+  padding: 16px 20px;
 }
 .notice {
   border: 1px solid var(--mall-border);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 10px;
+  border-radius: 15px;
+  padding: 13px 15px;
+  margin-bottom: 12px;
+  background: rgba(255, 253, 249, 0.82);
+  transition: border-color 0.18s ease, transform 0.18s ease;
+}
+.notice:hover {
+  border-color: rgba(242, 107, 63, 0.22);
+  transform: translateY(-1px);
 }
 .notice.unread {
   border-color: var(--mall-primary);
-  background: #fff9f6;
+  background: var(--mall-primary-soft);
 }
 .notice-top {
   display: flex;

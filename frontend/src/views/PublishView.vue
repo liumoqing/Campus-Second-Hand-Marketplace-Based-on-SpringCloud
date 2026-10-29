@@ -6,6 +6,7 @@ import { productApi } from '@/api'
 import { regions } from '@/data/regions'
 import ImageUploader from '@/components/ImageUploader.vue'
 import SplitButton from '@/components/SplitButton.vue'
+import { conditionLabel } from '@/utils/product'
 import type { CategoryNode } from '@/types'
 
 const route = useRoute()
@@ -198,7 +199,7 @@ onMounted(async () => {
         </el-form-item>
         <el-form-item label="成色">
           <el-select v-model="form.conditionLevel">
-            <el-option v-for="n in 9" :key="n" :value="10 - n" :label="`${10 - n} 成新`" />
+            <el-option v-for="n in 10" :key="n" :value="11 - n" :label="conditionLabel(11 - n)" />
           </el-select>
         </el-form-item>
       </div>

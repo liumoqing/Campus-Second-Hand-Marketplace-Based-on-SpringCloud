@@ -352,28 +352,36 @@ onMounted(() => load(true))
 
 <style scoped>
 .orders {
-  padding: 24px;
-  max-width: 980px;
+  padding: 28px;
+  max-width: 1100px;
 }
 .head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .page-title {
-  font-size: 20px;
+  font-size: 28px;
   margin: 0;
 }
 .order {
-  padding: 14px 18px;
-  margin-bottom: 14px;
+  padding: 17px 20px;
+  margin-bottom: 16px;
+  border-color: rgba(58, 49, 39, 0.08);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(72, 55, 37, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.order:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 38px rgba(72, 55, 37, 0.1);
 }
 .o-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--mall-border);
   font-size: 13px;
   color: var(--mall-text-2);
@@ -385,21 +393,23 @@ onMounted(() => load(true))
 .o-body {
   display: flex;
   gap: 14px;
-  padding: 12px 0;
+  padding: 15px 0;
   align-items: center;
 }
 .cover {
-  width: 76px;
-  height: 76px;
+  width: 86px;
+  height: 86px;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(72, 55, 37, 0.1);
 }
 .o-info {
   flex: 1;
   min-width: 0;
 }
 .o-title {
-  font-size: 15px;
+  font-size: 16px;
+  font-weight: 680;
   margin-bottom: 6px;
   cursor: pointer;
 }
@@ -416,10 +426,10 @@ onMounted(() => load(true))
 }
 .refund-actions { margin-top: 8px; }
 .buyer-info {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: #fafbfc;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--mall-surface-muted);
   font-size: 12px;
   line-height: 1.8;
   color: var(--mall-text-2);

@@ -169,3 +169,23 @@ spring_Cloud_QiMo/
 ├─ sql/                     # 01-schema.sql、02-init-data.sql
 └─ 文档归类/                 # 01~05 设计文档与施工日志
 ```
+
+![image-20261029234318291](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234318291.png)主页
+
+![image-20261029234335217](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234335217.png)
+
+消息页面
+
+![image-20261029234404757](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234404757.png)
+
+个人页面
+
+![image-20261029234421593](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234421593.png)
+
+商品详情页
+
+![image-20261029234503892](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234503892.png)
+
+管理员后台
+
+![image-20261029234522893](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234522893.png)

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { orderApi, paymentApi, productApi, userApi } from '@/api'
 import AddressFormDialog from '@/components/AddressFormDialog.vue'
+import { conditionLabel } from '@/utils/product'
 import type { AddressItem, ProductDetail } from '@/types'
 
 const route = useRoute()
@@ -137,7 +138,7 @@ onMounted(async () => {
         <img v-if="product.coverUrl" :src="product.coverUrl" alt="" />
         <div class="goods-info">
           <div class="g-title">{{ product.title }}</div>
-          <div class="mall-sub">成色 {{ product.conditionLevel }} 成新 · {{ product.city }}</div>
+          <div class="mall-sub">成色 {{ conditionLabel(product.conditionLevel) || '未填' }} · {{ product.city }}</div>
         </div>
         <div class="g-price mall-price">¥{{ product.price }}</div>
       </div>
