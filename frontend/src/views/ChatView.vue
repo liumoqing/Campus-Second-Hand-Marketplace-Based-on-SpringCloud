@@ -56,12 +56,10 @@ async function loadNotices() {
   activeId.value = ''
   router.replace({ query: { tab: 'notice' } })
   const page = await messageApi.notices({ pageNum: 1, pageSize: 30 })
-  notices.value = page.records
-  if (page.records.some((n) => !n.isRead)) {
-    const r = await messageApi.read({ noticeIds: page.records.filter((n) => !n.isRead).map((n) => n.noticeId) })
-    chat.unreadTotal = Number((r as any).unreadTotal ?? chat.unreadTotal)
-    await chat.refreshNoticeUnread()
-  }
+  // 进入系统通知页即清空全部通知未读，而不是只清当前这一页。
+  await messageApi.read({ noticeIds: [] })
+  notices.value = page.records.map((n) => ({ ...n, isRead: true }))
+  await chat.refreshNoticeUnread()
 }
 
 async function send() {
@@ -148,8 +146,19 @@ function openProduct(pid: string) {
   if (pid) router.push(`/product/${pid}`)
 }
 
-function openOrder(orderNo: string) {
-  router.push({ path: '/orders', query: { orderNo } })
+function openOrder(orderNo: string, refund = false) {
+  router.push({
+    path: '/orders',
+    query: refund ? { tab: 'REFUND', role: 'sold' } : { orderNo }
+  })
+}
+
+function orderCardTitle(message: ChatMessage) {
+  return message.content?.productTitle || activeConv.value?.productTitle || '商品信息'
+}
+
+function orderCardCover(message: ChatMessage) {
+  return message.content?.productCover || activeConv.value?.productCover || ''
 }
 
 watch(
@@ -214,7 +223,9 @@ onMounted(async () => {
             </div>
             <div class="notice-content">{{ n.content }}</div>
             <div v-if="n.bizType === 'ORDER' && n.bizId" class="notice-op">
-              <el-button link type="primary" size="small" @click="openOrder(n.bizId)">查看订单</el-button>
+              <el-button link type="primary" size="small" @click="openOrder(n.bizId, n.type === 'REFUND')">
+                {{ n.type === 'REFUND' ? '去处理退款' : '查看订单' }}
+              </el-button>
             </div>
             <div v-else-if="n.bizType === 'PRODUCT' && n.bizId" class="notice-op">
               <el-button link type="primary" size="small" @click="openProduct(n.bizId)">查看商品</el-button>
@@ -263,11 +274,13 @@ onMounted(async () => {
                 </div>
               </div>
               <!-- 订单卡片 -->
-              <div v-else-if="m.contentType === 'ORDER'" class="card-bubble order" @click="openOrder(m.content.orderNo)">
+              <div v-else-if="m.contentType === 'ORDER'" class="card-bubble order" @click="openProduct(m.content.productId)">
+                <img v-if="orderCardCover(m)" :src="orderCardCover(m)" alt="" />
+                <div v-else class="order-cover-placeholder"><el-icon><Picture /></el-icon></div>
                 <div class="cb-info">
-                  <div class="cb-title">{{ cardText[m.cardType || ''] || m.content.statusText || '订单提醒' }}</div>
-                  <div class="mall-sub">订单号 {{ m.content.orderNo }}</div>
-                  <div class="mall-sub">点击查看订单</div>
+                  <div class="cb-title">{{ orderCardTitle(m) }}</div>
+                  <div class="cb-status">{{ cardText[m.cardType || ''] || m.content.statusText || '订单提醒' }}</div>
+                  <div class="mall-sub">查看商品</div>
                 </div>
               </div>
             </div>
@@ -462,13 +475,35 @@ onMounted(async () => {
   border-radius: 6px;
 }
 .card-bubble.order {
-  width: 240px;
+  width: 280px;
+  align-items: center;
+}
+.order-cover-placeholder {
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
+  border-radius: 6px;
+  background: var(--mall-bg);
+  color: var(--mall-text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.cb-info {
+  min-width: 0;
+  flex: 1;
 }
 .cb-title {
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--mall-text);
+}
+.cb-status {
+  font-size: 13px;
+  color: var(--mall-text-2);
+  margin-bottom: 2px;
 }
 .msg-time {
   font-size: 11px;

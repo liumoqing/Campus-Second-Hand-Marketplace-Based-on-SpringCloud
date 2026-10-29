@@ -157,6 +157,7 @@ export interface ConversationItem {
   peerAvatar?: string
   peerOnline?: boolean
   productId: string
+  productTitle?: string
   productCover?: string
   lastMsg: string
   lastMsgType: string

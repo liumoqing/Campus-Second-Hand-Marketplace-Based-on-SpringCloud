@@ -161,6 +161,22 @@ public class CategoryService {
         return c == null ? null : c.getName();
     }
 
+    /** 一级分类筛选时返回自身及启用的子分类；二级分类只会返回自身。 */
+    public List<Long> selfAndChildIds(Long categoryId) {
+        if (categoryId == null) {
+            return List.of();
+        }
+        List<Long> ids = new ArrayList<>();
+        ids.add(categoryId);
+        List<Category> children = categoryMapper.selectList(new LambdaQueryWrapper<Category>()
+                .eq(Category::getParentId, categoryId)
+                .eq(Category::getStatus, 1));
+        for (Category child : children) {
+            ids.add(child.getId());
+        }
+        return ids;
+    }
+
     public void clearCache() {
         cache.clear();
         log.debug("分类缓存已清空（key 前缀 {}）", MallConstants.CACHE_CATEGORY_TREE);

@@ -124,7 +124,8 @@ export const useChatStore = defineStore('chat', () => {
         unreadTotal.value = Number(frame.data.unreadTotal ?? 0)
         break
       case 'NOTICE':
-        noticeUnread.value += 1
+        // 以服务端为准，避免已读后迟到的 NOTICE 帧把红点重新加回来
+        refreshNoticeUnread().catch(() => {})
         break
       case 'KICKED': {
         const d = frame.data || {}

@@ -105,8 +105,7 @@ function Stop-ProjectServices([switch]$IncludeFrontend) {
 
     # 1) 命令行匹配：jar 方式与 IDEA 方式（target\classes）都覆盖
     $patterns = @(
-        'mall-(gateway|auth|user|product|order|payment|message)\[^\s]*target\',
-        'mall-(gateway|auth|user|product|order|payment|message)\\\\target\\\\'
+        'mall-(gateway|auth|user|product|order|payment|message)[^\r\n]*[\\/]target[\\/]'
     )
     foreach ($p in (Get-CimInstance Win32_Process -Filter "Name='java.exe'" -ErrorAction SilentlyContinue)) {
         $cmd = [string]$p.CommandLine

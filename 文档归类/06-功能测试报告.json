@@ -1,13 +1,13 @@
 {
   "meta": {
-    "analysis": "## 三、结论与建议\n\n> 本节由脚本内的清单生成，对应当前这 9 个失败用例；处理完请重跑本脚本，失败项会自动消失。\n\n**总体判断**：主要业务链路（发布→下单→支付→发货→收货→评价→退款、聊天、后台治理）都能跑通，失败集中在「错误码精度」和「边界状态处理」两类，不影响主流程演示，但答辩前建议全部修掉。\n\n| # | 问题 | 文档依据 | 建议修法 | 工作量 |\n| ---: | --- | --- | --- | --- |\n| 1 | 注册重复用户名返回 10001 而非 20001 | 03 §A2 | `InnerUserService.register` 抛 `USERNAME_EXISTS`，同时检查 auth 侧是否把 BizException 的 code 覆盖成了 10001 | 小 |\n| 2 | 注册重复邮箱返回 10001 而非 20006 | 03 §A2 | 同上，抛 `EMAIL_EXISTS` | 小 |\n| 3 | 头像未校验是否本站地址（外部 URL 也能注册成功） | 03 §A2 / 01 §9.4 | `AuthService.register` 增加 `avatar` 前缀白名单校验（`/files/avatar/` 或 `http://127.0.0.1:4402/files/avatar/`），不合法抛 20007 | 小 |\n| 4 | 解封后 `banUntil` 仍保留旧值 | 03 §U15 | `AdminUserService.unban` 一并 `setBanUntil(null)`、`setBanReason(null)` | 小 |\n| 5 | 商品列表卡片缺 `categoryId` | 03 §P1 响应样例 | `ProductCardVO` 增加 `categoryId` 字段并在 `toCard` 里赋值 | 小 |\n| 6 | 发布草稿传空对象返回 10001（标题校验）而非 30004 | 03 §P9 | `publishDraft` 在 `dto != null` 时先算缺失项，缺失就抛 30004（把 `validate(dto,false)` 移到缺失判断之后，或只校验「传了的字段」） | 小 |\n| 7 | 卖家同意退款后商品仍为 SOLD（未回收） | 01 §8.9 / 03 §O13 | `RefundService.handle` 同意分支对 `beforeStatus=UNSHIPPED` 调新的 `productMapper.resell(orderNo)`（`SET status='ON_SALE', stock=1, lock_order_no=NULL, sold_time=NULL WHERE ...`），因为当前 `restore` 只处理 LOCKED | 中 |\n| 8 | **他人订单能被「支付」**（幂等分支未校验归属） | 01 §7.10 / 03 §Y1 | `PaymentService.pay` 先校验订单买家 == 当前用户（10003），再做幂等返回；否则属于越权漏洞 | 小（安全优先级高） |\n| 9 | 内部退款接口非幂等（第二次 50004） | 03 §Y8 | 已 SUCCESS→REFUNDED 的单直接返回成功；退款额度校验放在「状态不是已退款」分支内 | 小 |\n\n| 10 | 草稿商品的局部编辑被标题校验拦下（只传分类/价格/图片 → 10001） | 03 §P5 | 草稿分支同理改用 \u000balidatePartial，或在 \u000balidate(dto,true) 里对 null 字段跳过 | 小 |\n\n**修复顺序建议**：#8（越权）→ #7（资金/库存一致性）→ #1/#2/#3（注册契约）→ #10/#6/#5（编辑与字段）→ #9。",
+    "analysis": "## 三、结论与建议\n\n**总体判断**：本轮 REST 用例全部通过，退款闭环已覆盖“买家申请 → 卖家通知 → 卖家/管理员审批 → 买家结果通知 → 订单与支付状态流转”。\n\n### 重点验收\n\n- O12：退款申请成功后，卖家通知列表可查到 `type=REFUND`、`title=退款申请待处理` 的记录，且卖家退款列表能看到待处理退款单。\n- O13：只有退款单卖家或 ADMIN 可审批；买家越权审批返回 `10003`；同意后订单、退款单、支付单均为 `REFUNDED`，未发货商品回到 `ON_SALE`。\n- 结果通知：拒绝后买家收到「退款申请已拒绝」，同意后收到「退款已同意」；通知失败不会回滚退款主流程。\n- 聊天卡片：M2/M13 返回商品名与封面，订单卡片展示商品图和商品名，不再把订单号作为主体信息。\n- 通知红点：M5 支持空数组全部已读，进入系统通知页后 M10 未读数归零，迟到 WS 帧不会重新加红点。\n- 服务稳定性：`_common.ps1` 已修正项目 Java 进程识别正则，REST/浏览器测试入口显式退出，避免测试结束后句柄滞留。\n\n**结论**：REST 接口与核心业务状态机无阻断性问题，可继续按功能模块逐项验收。",
     "env": "Windows / Node v22.23.2 / JDK 21 / Spring Boot 3.5.16 + Spring Cloud 2025.0.3",
     "base": "网关 http://127.0.0.1:4399（前端 5173 仅用于浏览器手测）",
     "notes": "本报告由 `node e2e/run.js` 自动生成，用例按《03-接口设计》的接口编号组织。\n\n测试前由 `scripts/start-all.cmd` 启动服务，auth 带 `--mall.captcha.enabled=false`，因此验证码用占位值 `captchaKey=test&captchaCode=0000`。\n\n部分用例依赖前置数据（分类、商品、地址、订单），脚本会自行创建并在用例内清理；若中途失败可能留下以 `测试`/`E2E` 开头的测试数据。\n\n接口直连网关 4399（同时验证路由、鉴权过滤器、头注入），未经过 Vite 代理。"
   },
   "summary": {
-    "total": 146,
-    "passed": 146,
+    "total": 148,
+    "passed": 148,
     "failed": 0,
     "failedList": []
   },
@@ -17,23 +17,23 @@
       "id": "A1",
       "title": "GET /auth/captcha 返回 captchaKey 与 base64 图片",
       "ok": true,
-      "ms": 5,
-      "info": "key=5ed6cf01… 图片 2178 字符"
+      "ms": 10,
+      "info": "key=d2bbb15c… 图片 2342 字符"
     },
     {
       "suite": "A 认证与令牌（A1~A10）",
       "id": "A2",
       "title": "POST /auth/register 注册新用户（五要素 + 头像）",
       "ok": true,
-      "ms": 117,
-      "info": "username=tester29024037"
+      "ms": 223,
+      "info": "username=tester29210406"
     },
     {
       "suite": "A 认证与令牌（A1~A10）",
       "id": "A2-重复用户名",
       "title": "注册同名用户返回 20001",
       "ok": true,
-      "ms": 49,
+      "ms": 50,
       "info": "20001"
     },
     {
@@ -41,7 +41,7 @@
       "id": "A2-重复邮箱",
       "title": "注册同邮箱用户返回 20006",
       "ok": true,
-      "ms": 37,
+      "ms": 55,
       "info": "20006"
     },
     {
@@ -49,7 +49,7 @@
       "id": "A2-两次密码不一致",
       "title": "confirmPassword 不一致返回 20005",
       "ok": true,
-      "ms": 41,
+      "ms": 31,
       "info": "20005"
     },
     {
@@ -57,7 +57,7 @@
       "id": "A2-用户名过短",
       "title": "username 少于 4 位返回 10001",
       "ok": true,
-      "ms": 46,
+      "ms": 28,
       "info": "10001"
     },
     {
@@ -65,7 +65,7 @@
       "id": "A2-头像非本站",
       "title": "avatar 传外部地址返回 20007",
       "ok": true,
-      "ms": 22,
+      "ms": 25,
       "info": "20007"
     },
     {
@@ -73,7 +73,7 @@
       "id": "A3",
       "title": "用户名登录 / 邮箱登录均可",
       "ok": true,
-      "ms": 167,
+      "ms": 189,
       "info": "expiresIn=7200"
     },
     {
@@ -81,7 +81,7 @@
       "id": "A3-密码错误",
       "title": "密码错误返回 20002",
       "ok": true,
-      "ms": 98,
+      "ms": 82,
       "info": "20002"
     },
     {
@@ -89,7 +89,7 @@
       "id": "A4",
       "title": "POST /auth/refresh 轮换：首次成功、复用旧 refresh 返回 10002",
       "ok": true,
-      "ms": 13,
+      "ms": 23,
       "info": "一次性轮换生效"
     },
     {
@@ -97,7 +97,7 @@
       "id": "A6",
       "title": "GET /auth/me 返回本人资料；无令牌返回 10002",
       "ok": true,
-      "ms": 7,
+      "ms": 14,
       "info": "role=USER canPublish=true"
     },
     {
@@ -105,7 +105,7 @@
       "id": "A7-原密码错误",
       "title": "PUT /auth/password 原密码错误返回 20005",
       "ok": true,
-      "ms": 62,
+      "ms": 71,
       "info": "20005"
     },
     {
@@ -113,7 +113,7 @@
       "id": "A7",
       "title": "PUT /auth/password 改密成功，新密码可登录、旧密码失效",
       "ok": true,
-      "ms": 516,
+      "ms": 547,
       "info": "改密 + 令牌失效均生效"
     },
     {
@@ -121,15 +121,15 @@
       "id": "A8",
       "title": "POST /auth/avatar 上传头像返回本站 URL",
       "ok": true,
-      "ms": 7,
-      "info": "http://127.0.0.1:4402/files/avatar/202610/32c42cad841f4009be248e29ab412ab4.png"
+      "ms": 30,
+      "info": "http://127.0.0.1:4402/files/avatar/202610/0503318b04de42868413fe6b1db2dfb9.png"
     },
     {
       "suite": "A 认证与令牌（A1~A10）",
       "id": "A8-非图片",
       "title": "上传文本文件被拒（10008/10001）",
       "ok": true,
-      "ms": 3,
+      "ms": 5,
       "info": "code=10008"
     },
     {
@@ -137,7 +137,7 @@
       "id": "A9",
       "title": "POST /auth/reset-code 发码（开发模式回显 devCode）",
       "ok": true,
-      "ms": 7,
+      "ms": 13,
       "info": "devCode 已回显（开发模式）"
     },
     {
@@ -145,7 +145,7 @@
       "id": "A10",
       "title": "POST /auth/reset-password 找回密码并用新密码登录",
       "ok": true,
-      "ms": 363,
+      "ms": 419,
       "info": "重置 → 登录 → 改回 全部成功"
     },
     {
@@ -153,7 +153,7 @@
       "id": "A5",
       "title": "POST /auth/logout 注销成功（refresh 一并失效）",
       "ok": true,
-      "ms": 85,
+      "ms": 99,
       "info": "注销成功"
     },
     {
@@ -169,7 +169,7 @@
       "id": "U1",
       "title": "GET /user/profile 返回本人资料",
       "ok": true,
-      "ms": 4,
+      "ms": 32,
       "info": "city=武汉市 credit=100"
     },
     {
@@ -177,15 +177,15 @@
       "id": "U2",
       "title": "PUT /user/profile 修改昵称与签名",
       "ok": true,
-      "ms": 19,
-      "info": "昵称/测试用户839500"
+      "ms": 51,
+      "info": "昵称/测试用户048435"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U2-签名超长",
       "title": "signature 超过 200 字返回 10001",
       "ok": true,
-      "ms": 4,
+      "ms": 11,
       "info": "10001"
     },
     {
@@ -193,23 +193,23 @@
       "id": "U3",
       "title": "GET /user/{id} 卖家主页（需登录）",
       "ok": true,
-      "ms": 15,
-      "info": "sold=28 onSale=182 rating=5(28)"
+      "ms": 194,
+      "info": "sold=44 onSale=259 rating=5(33)"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U4",
       "title": "GET /user/statistics 返回八项角标",
       "ok": true,
-      "ms": 14,
-      "info": "{\"onSaleCount\":\"182\",\"draftCount\":\"17\",\"soldCount\":\"28\",\"boughtCount\":\"0\",\"favoriteCount\":\"16\",\"pendingShipCount\":\"41\",\"pendingReceiveCount\":\"0\",\"avgRating\":5}"
+      "ms": 43,
+      "info": "{\"onSaleCount\":\"259\",\"draftCount\":\"22\",\"soldCount\":\"44\",\"boughtCount\":\"0\",\"favoriteCount\":\"16\",\"pendingShipCount\":\"56\",\"pendingReceiveCount\":\"0\",\"avgRating\":5}"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U5",
       "title": "GET /user/addresses 列表（默认地址排最前、手机号脱敏）",
       "ok": true,
-      "ms": 4,
+      "ms": 14,
       "info": "1 条"
     },
     {
@@ -217,15 +217,15 @@
       "id": "U6",
       "title": "POST /user/addresses 新增地址返回 {id}",
       "ok": true,
-      "ms": 9,
-      "info": "id=2115514096252555266"
+      "ms": 26,
+      "info": "id=2115791797752352770"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U7",
       "title": "PUT /user/addresses/{id} 修改地址",
       "ok": true,
-      "ms": 11,
+      "ms": 24,
       "info": "ok"
     },
     {
@@ -233,7 +233,7 @@
       "id": "U9",
       "title": "PUT /user/addresses/{id}/default 设默认",
       "ok": true,
-      "ms": 15,
+      "ms": 30,
       "info": "默认地址与资料地区已同步"
     },
     {
@@ -241,7 +241,7 @@
       "id": "U10",
       "title": "GET /user/addresses/default 与 U5 默认标记一致",
       "ok": true,
-      "ms": 3,
+      "ms": 7,
       "info": "ok"
     },
     {
@@ -249,7 +249,7 @@
       "id": "U6-地址上限",
       "title": "同一用户第 11 条地址返回 20010",
       "ok": true,
-      "ms": 140,
+      "ms": 212,
       "info": "20010"
     },
     {
@@ -257,7 +257,7 @@
       "id": "U8",
       "title": "DELETE /user/addresses/{id} 删除并回退默认",
       "ok": true,
-      "ms": 15,
+      "ms": 26,
       "info": "剩余 0 条"
     },
     {
@@ -265,7 +265,7 @@
       "id": "U12-越权",
       "title": "普通用户访问 /user/admin/page 返回 10003",
       "ok": true,
-      "ms": 2,
+      "ms": 7,
       "info": "10003"
     },
     {
@@ -273,15 +273,15 @@
       "id": "U12",
       "title": "管理员分页查询用户 + keyword 搜索",
       "ok": true,
-      "ms": 14,
-      "info": "total=28 首条=tester29024037"
+      "ms": 90,
+      "info": "total=33 首条=tester29210406"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U13",
       "title": "管理员查看用户详情（含商品/订单统计）",
       "ok": true,
-      "ms": 18,
+      "ms": 33,
       "info": "ok"
     },
     {
@@ -289,7 +289,7 @@
       "id": "U14-不能动超管",
       "title": "管理员封禁超级管理员返回 20008",
       "ok": true,
-      "ms": 4,
+      "ms": 11,
       "info": "20008"
     },
     {
@@ -297,7 +297,7 @@
       "id": "U14-不能操作自己",
       "title": "管理员封禁自己返回 20009",
       "ok": true,
-      "ms": 5,
+      "ms": 8,
       "info": "20009"
     },
     {
@@ -305,15 +305,15 @@
       "id": "U14",
       "title": "封禁用户：登录返回 20003 且带解封时间、旧令牌立即失效",
       "ok": true,
-      "ms": 122,
-      "info": "20003 banUntil=2026-10-29 18:40:39"
+      "ms": 143,
+      "info": "20003 banUntil=2026-10-30 13:04:09"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U15",
       "title": "解封后可以重新登录",
       "ok": true,
-      "ms": 91,
+      "ms": 136,
       "info": "ok"
     },
     {
@@ -321,15 +321,15 @@
       "id": "U16",
       "title": "限制上架权限：发布商品返回 30009 且带解封时间",
       "ok": true,
-      "ms": 25,
-      "info": "30009 publishBanUntil=2026-10-29 18:40:40"
+      "ms": 99,
+      "info": "30009 publishBanUntil=2026-10-30 13:04:09"
     },
     {
       "suite": "U 用户与账号治理（U1~U23）",
       "id": "U17-常管无权",
       "title": "普通管理员设置角色返回 10003",
       "ok": true,
-      "ms": 4,
+      "ms": 8,
       "info": "10003"
     },
     {
@@ -337,7 +337,7 @@
       "id": "U17-不能设为超管",
       "title": "超级管理员把用户设为 SUPER_ADMIN 返回 20008",
       "ok": true,
-      "ms": 6,
+      "ms": 8,
       "info": "20008"
     },
     {
@@ -345,7 +345,7 @@
       "id": "U17",
       "title": "超管提升为 ADMIN 后该用户可访问后台，降回 USER 后被拒",
       "ok": true,
-      "ms": 219,
+      "ms": 238,
       "info": "升降级均生效，且角色变更使旧令牌失效"
     },
     {
@@ -353,7 +353,7 @@
       "id": "U18",
       "title": "GET /inner/user/credential 按用户名/邮箱取凭证",
       "ok": true,
-      "ms": 22,
+      "ms": 32,
       "info": "ok"
     },
     {
@@ -361,7 +361,7 @@
       "id": "U20",
       "title": "GET /inner/user/{id} 与 /batch 返回精简资料",
       "ok": true,
-      "ms": 4,
+      "ms": 9,
       "info": "batch=,"
     },
     {
@@ -369,7 +369,7 @@
       "id": "U21",
       "title": "GET /inner/user/address/{addressId} 返回订单快照用的真实手机号",
       "ok": true,
-      "ms": 6,
+      "ms": 12,
       "info": "武汉市江夏区"
     },
     {
@@ -377,7 +377,7 @@
       "id": "U22",
       "title": "PUT /inner/user/{id}/credit 扣信用分（下限 0）",
       "ok": true,
-      "ms": 7,
+      "ms": 14,
       "info": "100 → 98"
     },
     {
@@ -385,7 +385,7 @@
       "id": "U23",
       "title": "PUT /inner/user/{id}/password 内部改密",
       "ok": true,
-      "ms": 300,
+      "ms": 319,
       "info": "ok"
     },
     {
@@ -393,7 +393,7 @@
       "id": "U15-解封清空",
       "title": "解封后 banUntil / banReason 应清空（避免前端误显示）",
       "ok": true,
-      "ms": 44,
+      "ms": 51,
       "info": "cleared"
     },
     {
@@ -401,24 +401,24 @@
       "id": "P1",
       "title": "游客分页：强制 20 条上限并返回 guestLimited",
       "ok": true,
-      "ms": 21,
-      "info": "records=20 total=184"
+      "ms": 16,
+      "info": "records=20 total=262"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P1-登录分页",
       "title": "登录后不再限制 20 条、guestLimited=false",
       "ok": true,
-      "ms": 15,
-      "info": "total=184"
+      "ms": 17,
+      "info": "total=262"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P1-筛选排序",
       "title": "keyword / categoryId / sort / priceMin / city 生效",
       "ok": true,
-      "ms": 64,
-      "info": "kw=0 cat=23 asc首价=10"
+      "ms": 84,
+      "info": "kw=0 cat=100 asc首价=1"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
@@ -433,7 +433,7 @@
       "id": "P4-校验",
       "title": "发布校验：缺图/缺分类/价格 0 均返回 10001",
       "ok": true,
-      "ms": 28,
+      "ms": 37,
       "info": "4 项校验均拦截"
     },
     {
@@ -441,15 +441,15 @@
       "id": "P4",
       "title": "发布商品成功（ON_SALE）",
       "ok": true,
-      "ms": 14,
-      "info": "productId=437"
+      "ms": 28,
+      "info": "productId=630"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P2",
       "title": "详情返回卖家卡片、运费提示、图片列表",
       "ok": true,
-      "ms": 23,
+      "ms": 72,
       "info": "freight=同城 5 元 / 跨城 10 元 seller=爱丽丝"
     },
     {
@@ -457,7 +457,7 @@
       "id": "P3",
       "title": "相似商品列表（可为空，但必须是数组）",
       "ok": true,
-      "ms": 10,
+      "ms": 15,
       "info": "共 8 条"
     },
     {
@@ -465,7 +465,7 @@
       "id": "P5",
       "title": "局部编辑：只传标题也可保存",
       "ok": true,
-      "ms": 44,
+      "ms": 45,
       "info": "ok"
     },
     {
@@ -473,7 +473,7 @@
       "id": "P5-越权",
       "title": "编辑他人商品返回 30005",
       "ok": true,
-      "ms": 6,
+      "ms": 9,
       "info": "30005"
     },
     {
@@ -481,7 +481,7 @@
       "id": "P6",
       "title": "卖家下架商品（OFF_SHELF）",
       "ok": true,
-      "ms": 24,
+      "ms": 40,
       "info": "ok"
     },
     {
@@ -489,7 +489,7 @@
       "id": "P7",
       "title": "卖家重新上架（ON_SALE 且清空下架原因）",
       "ok": true,
-      "ms": 27,
+      "ms": 44,
       "info": "ok"
     },
     {
@@ -497,7 +497,7 @@
       "id": "P9/P10",
       "title": "草稿：发布草稿缺项返回 30004，补齐后可发布",
       "ok": true,
-      "ms": 81,
+      "ms": 182,
       "info": "missing=images,categoryId,price,region；草稿局部更新 code=0"
     },
     {
@@ -505,7 +505,7 @@
       "id": "P10-游客不可见草稿",
       "title": "草稿不出现在公开列表",
       "ok": true,
-      "ms": 11,
+      "ms": 17,
       "info": "ok"
     },
     {
@@ -513,23 +513,23 @@
       "id": "P11",
       "title": "图片上传（bizType=product）返回 URL；非法 bizType 被拒",
       "ok": true,
-      "ms": 15,
-      "info": "http://127.0.0.1:4402/files/product/202610/18902c21402048feb6a7b50005290e68.png"
+      "ms": 61,
+      "info": "http://127.0.0.1:4402/files/product/202610/6616d1f7e5a74c729a3efdae4b8dae10.png"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P13",
       "title": "发表评论成功（comment_count +1）",
       "ok": true,
-      "ms": 41,
-      "info": "commentId=103"
+      "ms": 96,
+      "info": "commentId=133"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P9-评论列表",
       "title": "评论列表返回 user 与 replyCount",
       "ok": true,
-      "ms": 9,
+      "ms": 25,
       "info": "共 1 条"
     },
     {
@@ -537,7 +537,7 @@
       "id": "P13-回复",
       "title": "回复评论（parentId）出现在 replies 里",
       "ok": true,
-      "ms": 22,
+      "ms": 39,
       "info": "ok"
     },
     {
@@ -545,7 +545,7 @@
       "id": "P14",
       "title": "删除自己的评论；删除他人评论被拒（30005/10003）",
       "ok": true,
-      "ms": 30,
+      "ms": 56,
       "info": "ok"
     },
     {
@@ -553,7 +553,7 @@
       "id": "P15/P16",
       "title": "收藏 → 收藏列表含该商品 → 取消收藏",
       "ok": true,
-      "ms": 57,
+      "ms": 100,
       "info": "ok"
     },
     {
@@ -561,31 +561,39 @@
       "id": "P19",
       "title": "GET /product/dict 返回成色/运费/排序字典",
       "ok": true,
-      "ms": 3,
-      "info": "productStatus,freightMode,sort,conditionLevel"
+      "ms": 6,
+      "info": "freightMode,sort,conditionLevel,productStatus"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P20",
       "title": "分类树（公开、两级）",
       "ok": true,
-      "ms": 4,
-      "info": "一级 16 个"
+      "ms": 7,
+      "info": "一级 9 个"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P21",
       "title": "管理员新建一级分类与二级分类",
       "ok": true,
-      "ms": 15,
-      "info": "78/79"
+      "ms": 26,
+      "info": "93/94"
+    },
+    {
+      "suite": "P 商品与分类（P1~P34）",
+      "id": "P1-一级分类聚合",
+      "title": "一级分类包含子分类商品，二级分类只返回自身商品",
+      "ok": true,
+      "ms": 92,
+      "info": "parent=2, child=1"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P21-重复名",
       "title": "同级同名分类返回 10001",
       "ok": true,
-      "ms": 13,
+      "ms": 19,
       "info": "10001"
     },
     {
@@ -593,7 +601,7 @@
       "id": "P21-三级限制",
       "title": "在二级分类下再建子级返回 30008",
       "ok": true,
-      "ms": 5,
+      "ms": 8,
       "info": "30008"
     },
     {
@@ -601,7 +609,7 @@
       "id": "P22",
       "title": "修改分类名称",
       "ok": true,
-      "ms": 7,
+      "ms": 13,
       "info": "ok"
     },
     {
@@ -609,7 +617,7 @@
       "id": "P23-占用保护",
       "title": "删除仍有商品的分类返回 30007",
       "ok": true,
-      "ms": 6,
+      "ms": 9,
       "info": "code=30007"
     },
     {
@@ -617,7 +625,7 @@
       "id": "P23",
       "title": "删除空分类（先删二级再删一级）",
       "ok": true,
-      "ms": 19,
+      "ms": 27,
       "info": "ok"
     },
     {
@@ -625,15 +633,15 @@
       "id": "P24",
       "title": "后台商品分页（支持状态/关键词筛选）",
       "ok": true,
-      "ms": 68,
-      "info": "total=316"
+      "ms": 135,
+      "info": "total=411"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P25",
       "title": "管理员强制下架（写入下架原因）",
       "ok": true,
-      "ms": 38,
+      "ms": 239,
       "info": "下架 + 通知均成功"
     },
     {
@@ -641,15 +649,15 @@
       "id": "P26",
       "title": "后台商品统计",
       "ok": true,
-      "ms": 8,
-      "info": "{\"onSale\":\"185\",\"draft\":\"17\",\"locked\":\"27\",\"sold\":\"67\",\"offShelf\":\"20\",\"total\":\"316\"}"
+      "ms": 14,
+      "info": "{\"onSale\":\"263\",\"draft\":\"22\",\"locked\":\"14\",\"sold\":\"87\",\"offShelf\":\"25\",\"total\":\"411\"}"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P27",
       "title": "GET /inner/product/{id}（直连 4402）",
       "ok": true,
-      "ms": 3,
+      "ms": 5,
       "info": "ok"
     },
     {
@@ -657,7 +665,7 @@
       "id": "P28",
       "title": "POST /inner/product/batch 批量取商品",
       "ok": true,
-      "ms": 3,
+      "ms": 6,
       "info": "共 2 条"
     },
     {
@@ -665,7 +673,7 @@
       "id": "P29/P30",
       "title": "内部扣库存 → 幂等 → 回补",
       "ok": true,
-      "ms": 30,
+      "ms": 39,
       "info": "ok"
     },
     {
@@ -673,15 +681,15 @@
       "id": "P34",
       "title": "GET /inner/product/statistics/{sellerId}",
       "ok": true,
-      "ms": 12,
-      "info": "{\"onSaleCount\":184,\"draftCount\":17,\"soldCount\":64,\"favoriteCount\":16}"
+      "ms": 11,
+      "info": "{\"onSaleCount\":261,\"draftCount\":22,\"soldCount\":84,\"favoriteCount\":16}"
     },
     {
       "suite": "P 商品与分类（P1~P34）",
       "id": "P1-卡片字段",
       "title": "列表卡片应带 categoryId（前端分类联动需要）",
       "ok": true,
-      "ms": 10,
+      "ms": 13,
       "info": "categoryId=3"
     },
     {
@@ -689,7 +697,7 @@
       "id": "P9-空请求体",
       "title": "发布草稿时请求体为空对象应返回 30004（带缺失项）",
       "ok": true,
-      "ms": 15,
+      "ms": 22,
       "info": "30004"
     },
     {
@@ -697,7 +705,7 @@
       "id": "O1-自己的商品",
       "title": "买自己的商品返回 40003",
       "ok": true,
-      "ms": 31,
+      "ms": 332,
       "info": "40003"
     },
     {
@@ -705,7 +713,7 @@
       "id": "O1-跨城自提",
       "title": "自提 + 跨城返回 40004",
       "ok": true,
-      "ms": 37,
+      "ms": 63,
       "info": "40004"
     },
     {
@@ -713,7 +721,7 @@
       "id": "O1-运费规则",
       "title": "包邮 0 / 同城 5 / 跨城 10",
       "ok": true,
-      "ms": 360,
+      "ms": 927,
       "info": "free=0 same=5.00 cross=10.00"
     },
     {
@@ -721,7 +729,7 @@
       "id": "O1-商品锁定",
       "title": "下单后商品变 LOCKED，第二人下单返回 30002/30003",
       "ok": true,
-      "ms": 157,
+      "ms": 212,
       "info": "code=30002"
     },
     {
@@ -729,7 +737,7 @@
       "id": "O1-地址不属于自己",
       "title": "使用他人地址下单返回 10004",
       "ok": true,
-      "ms": 34,
+      "ms": 42,
       "info": "code=10004"
     },
     {
@@ -737,23 +745,23 @@
       "id": "O2",
       "title": "我买到的 / 我卖出的 列表互不串味",
       "ok": true,
-      "ms": 92,
-      "info": "bought=219 sold=219 buyer=鲍勃"
+      "ms": 247,
+      "info": "bought=332 sold=332 buyer=鲍勃"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O3",
       "title": "订单详情：归属校验 + 待付款返回 expireTime",
       "ok": true,
-      "ms": 17,
-      "info": "expireTime=2026-10-29 03:10:42"
+      "ms": 25,
+      "info": "expireTime=2026-10-29 21:34:13"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O4",
       "title": "取消未付款订单：商品回到在售、重复取消 40002",
       "ok": true,
-      "ms": 179,
+      "ms": 240,
       "info": "ok"
     },
     {
@@ -761,7 +769,7 @@
       "id": "O5/O6",
       "title": "发货与收货：卖家发货 → 买家收货，越权都被拦",
       "ok": true,
-      "ms": 233,
+      "ms": 673,
       "info": "ok"
     },
     {
@@ -769,7 +777,7 @@
       "id": "O7-未完成不可评",
       "title": "未完成订单评价返回 40002",
       "ok": true,
-      "ms": 125,
+      "ms": 144,
       "info": "40002"
     },
     {
@@ -777,7 +785,7 @@
       "id": "O7",
       "title": "买家评价 → 重复评价 40005 → 卖家评价（方向自动判定）",
       "ok": true,
-      "ms": 22,
+      "ms": 37,
       "info": "双向评价完成"
     },
     {
@@ -785,7 +793,7 @@
       "id": "O8",
       "title": "回复评价：被评人可回、其他人 10003",
       "ok": true,
-      "ms": 12,
+      "ms": 21,
       "info": "ok"
     },
     {
@@ -793,15 +801,15 @@
       "id": "O9/O10/O11",
       "title": "我的评价 / 收到的评价 / 用户评价列表",
       "ok": true,
-      "ms": 73,
-      "info": "mine=29 received=29 ofUser=29"
+      "ms": 136,
+      "info": "mine=34 received=34 ofUser=34"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O12-未付款不可退",
       "title": "未付款订单申请退款返回 40002",
       "ok": true,
-      "ms": 98,
+      "ms": 124,
       "info": "40002"
     },
     {
@@ -809,15 +817,15 @@
       "id": "O12",
       "title": "已付款未发货可退款，重复申请 40007",
       "ok": true,
-      "ms": 194,
-      "info": "refundId=41"
+      "ms": 320,
+      "info": "refundId=79, notice=109"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O13-拒绝",
       "title": "卖家拒绝退款：订单按 before_status 回到 UNSHIPPED；一单一次故再次申请 40007",
       "ok": true,
-      "ms": 33,
+      "ms": 68,
       "info": "ok"
     },
     {
@@ -825,7 +833,7 @@
       "id": "O13-同意",
       "title": "卖家同意退款：订单 REFUNDED、支付单 REFUNDED、商品回收为 ON_SALE",
       "ok": true,
-      "ms": 256,
+      "ms": 449,
       "info": "ok"
     },
     {
@@ -833,15 +841,15 @@
       "id": "O14",
       "title": "退款列表（买家视角）",
       "ok": true,
-      "ms": 12,
-      "info": "total=42"
+      "ms": 17,
+      "info": "total=79"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O15",
       "title": "订单字典（状态/角色/退款状态）",
       "ok": true,
-      "ms": 3,
+      "ms": 6,
       "info": "orderStatus,refundStatus,roles"
     },
     {
@@ -849,15 +857,15 @@
       "id": "O16",
       "title": "后台订单分页与统计",
       "ok": true,
-      "ms": 45,
-      "info": "orders=229 {\"total\":\"229\",\"UNPAID\":\"31\",\"UNSHIPPED\":\"44\",\"UNRECEIVED\":\"1\",\"COMPLETED\":\"30\",\"CANCELLED\":\"97\",\"REFUNDING\":\"0\",\"REFUNDED\":\"26\"}"
+      "ms": 79,
+      "info": "orders=342 {\"total\":\"342\",\"UNPAID\":\"18\",\"UNSHIPPED\":\"59\",\"UNRECEIVED\":\"1\",\"COMPLETED\":\"46\",\"CANCELLED\":\"160\",\"REFUNDING\":\"17\",\"REFUNDED\":\"41\"}"
     },
     {
       "suite": "O 订单与交易（O1~O22）",
       "id": "O16-越权",
       "title": "普通用户访问后台订单返回 10003",
       "ok": true,
-      "ms": 3,
+      "ms": 5,
       "info": "10003"
     },
     {
@@ -865,7 +873,7 @@
       "id": "O19",
       "title": "GET /inner/order/{orderNo}",
       "ok": true,
-      "ms": 3,
+      "ms": 5,
       "info": "status=UNPAID"
     },
     {
@@ -873,7 +881,7 @@
       "id": "O20",
       "title": "POST /inner/order/{orderNo}/notify-paid 幂等",
       "ok": true,
-      "ms": 165,
+      "ms": 201,
       "info": "ok"
     },
     {
@@ -881,16 +889,16 @@
       "id": "O22",
       "title": "GET /inner/order/statistics/{userId}",
       "ok": true,
-      "ms": 3,
-      "info": "{\"soldCount\":0,\"boughtCount\":29,\"pendingShipCount\":0,\"pendingReceiveCount\":1,\"avgRating\":null,\"reviewCount\":0}"
+      "ms": 5,
+      "info": "{\"soldCount\":0,\"boughtCount\":45,\"pendingShipCount\":0,\"pendingReceiveCount\":1,\"avgRating\":null,\"reviewCount\":0}"
     },
     {
       "suite": "Y 支付与退款执行（Y1~Y9）",
       "id": "Y1",
       "title": "模拟支付：SUCCESS + MOCK 流水号 + 订单转待发货",
       "ok": true,
-      "ms": 161,
-      "info": "payNo=P20261029024043060625"
+      "ms": 212,
+      "info": "payNo=P20261029210416262172"
     },
     {
       "suite": "Y 支付与退款执行（Y1~Y9）",
@@ -905,7 +913,7 @@
       "id": "Y1-非待付款",
       "title": "对非待付款订单支付返回 50002",
       "ok": true,
-      "ms": 12,
+      "ms": 14,
       "info": "code=10003"
     },
     {
@@ -913,7 +921,7 @@
       "id": "Y2",
       "title": "支付详情：本人可查、他人 10003",
       "ok": true,
-      "ms": 12,
+      "ms": 18,
       "info": "amount=66.60"
     },
     {
@@ -921,7 +929,7 @@
       "id": "Y3",
       "title": "回调验签失败返回 50001",
       "ok": true,
-      "ms": 5,
+      "ms": 17,
       "info": "50001"
     },
     {
@@ -929,7 +937,7 @@
       "id": "Y5",
       "title": "支付字典（渠道/状态）",
       "ok": true,
-      "ms": 12,
+      "ms": 9,
       "info": "channel,status"
     },
     {
@@ -937,15 +945,15 @@
       "id": "Y6",
       "title": "后台支付分页：管理员可查、普通用户 10003",
       "ok": true,
-      "ms": 25,
-      "info": "total=87"
+      "ms": 74,
+      "info": "total=145"
     },
     {
       "suite": "Y 支付与退款执行（Y1~Y9）",
       "id": "Y7",
       "title": "GET /inner/payment/order/{orderNo}",
       "ok": true,
-      "ms": 4,
+      "ms": 5,
       "info": "ok"
     },
     {
@@ -953,7 +961,7 @@
       "id": "Y8",
       "title": "POST /inner/payment/refund 幂等",
       "ok": true,
-      "ms": 35,
+      "ms": 37,
       "info": "ok"
     },
     {
@@ -969,7 +977,7 @@
       "id": "M1-握手",
       "title": "WS /ws/chat?token= 可连接并回 PONG",
       "ok": true,
-      "ms": 3,
+      "ms": 9,
       "info": "connected"
     },
     {
@@ -977,7 +985,7 @@
       "id": "M1-无令牌",
       "title": "无 token 握手被拒",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "info": "rejected"
     },
     {
@@ -985,8 +993,8 @@
       "id": "M12",
       "title": "联系卖家建会话（幂等 + 商品卡片开场）",
       "ok": true,
-      "ms": 170,
-      "info": "cid=223"
+      "ms": 123,
+      "info": "cid=320"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
@@ -1001,8 +1009,8 @@
       "id": "M1-CHAT",
       "title": "WS 发文本消息，收到 ACK（含 msgId/createTime）",
       "ok": true,
-      "ms": 11,
-      "info": "msgId=528"
+      "ms": 23,
+      "info": "msgId=832"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
@@ -1017,7 +1025,7 @@
       "id": "M1-CHAT 非法类型",
       "title": "contentType=ORDER 被拒（ERROR/60004 或 HTTP 60004）",
       "ok": true,
-      "ms": 6,
+      "ms": 18,
       "info": "code=60004"
     },
     {
@@ -1025,39 +1033,39 @@
       "id": "M4",
       "title": "HTTP 兜底发送成功",
       "ok": true,
-      "ms": 13,
-      "info": "msgId=530"
+      "ms": 405,
+      "info": "msgId=834"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M3",
       "title": "历史消息（倒序 + hasMore）",
       "ok": true,
-      "ms": 6,
-      "info": "records=4 hasMore=false"
+      "ms": 10,
+      "info": "records=6 hasMore=false"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M2",
       "title": "会话列表（含未读与最后一条摘要）",
       "ok": true,
-      "ms": 26,
-      "info": "total=233 unread=2 lastMsgType=TEXT"
+      "ms": 34,
+      "info": "total=346 unread=2 lastMsgType=TEXT"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M5",
       "title": "已读（聊天语义）返回 unreadTotal",
       "ok": true,
-      "ms": 11,
-      "info": "unreadTotal=10"
+      "ms": 20,
+      "info": "unreadTotal=12"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M5-互斥",
       "title": "两字段同时传返回 10001",
       "ok": true,
-      "ms": 3,
+      "ms": 5,
       "info": "10001"
     },
     {
@@ -1065,24 +1073,32 @@
       "id": "M13",
       "title": "内部写订单卡片（幂等，不重复）",
       "ok": true,
-      "ms": 14,
-      "info": "ok"
+      "ms": 25,
+      "info": "商品名与封面已写入卡片"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M11/M6/M10",
       "title": "内部发通知 → 通知列表 → 未读数 → 已读清零",
       "ok": true,
-      "ms": 21,
-      "info": "notices=14 unread=1"
+      "ms": 35,
+      "info": "notices=43 unread=3"
+    },
+    {
+      "suite": "M 聊天与消息（M1~M13）",
+      "id": "M5-通知全部已读",
+      "title": "通知传空数组清空全部未读，而不是只清当前页",
+      "ok": true,
+      "ms": 38,
+      "info": "before=2, after=0"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
       "id": "M7",
       "title": "GET /inner/message/unread/{userId}",
       "ok": true,
-      "ms": 3,
-      "info": "{\"chatUnread\":\"11\",\"noticeUnread\":\"0\"}"
+      "ms": 5,
+      "info": "{\"noticeUnread\":\"0\",\"chatUnread\":\"13\"}"
     },
     {
       "suite": "M 聊天与消息（M1~M13）",
@@ -1105,7 +1121,7 @@
       "id": "X-网关",
       "title": "客户端伪造 X-User-Id 被剥离",
       "ok": true,
-      "ms": 0,
+      "ms": 1,
       "info": "code=10002"
     },
     {
@@ -1113,7 +1129,7 @@
       "id": "X-鉴权",
       "title": "无 token 访问受保护接口 10002",
       "ok": true,
-      "ms": 1,
+      "ms": 0,
       "info": "10002"
     },
     {
@@ -1121,7 +1137,7 @@
       "id": "X-鉴权",
       "title": "坏 token 返回 10002",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "info": "code=10002"
     },
     {
@@ -1129,7 +1145,7 @@
       "id": "X-鉴权",
       "title": "普通用户访问后台接口 10003",
       "ok": true,
-      "ms": 2,
+      "ms": 4,
       "info": "10003"
     },
     {
@@ -1137,7 +1153,7 @@
       "id": "X-游客",
       "title": "游客可访问商品列表与分类树、不能访问详情",
       "ok": true,
-      "ms": 19,
+      "ms": 31,
       "info": "ok"
     },
     {
@@ -1145,7 +1161,7 @@
       "id": "X-序列化",
       "title": "Long 主键与 BigDecimal 金额都以字符串返回",
       "ok": true,
-      "ms": 10,
+      "ms": 19,
       "info": "id=3 price=128.00"
     },
     {
@@ -1153,7 +1169,7 @@
       "id": "X-错误封装",
       "title": "统一响应体 {code,message,data,timestamp}",
       "ok": true,
-      "ms": 4,
+      "ms": 9,
       "info": "code=40001"
     },
     {
@@ -1161,7 +1177,7 @@
       "id": "X-参数校验",
       "title": "路径参数类型错误返回 10001",
       "ok": true,
-      "ms": 4,
+      "ms": 7,
       "info": "code=10001"
     },
     {
@@ -1169,7 +1185,7 @@
       "id": "X-CORS",
       "title": "预检请求允许跨域",
       "ok": true,
-      "ms": 1,
+      "ms": 2,
       "info": "status=200 allow=http://127.0.0.1:5173"
     },
     {
@@ -1177,13 +1193,13 @@
       "id": "X-限流",
       "title": "评论 1 分钟 3 条限制",
       "ok": true,
-      "ms": 27,
+      "ms": 55,
       "info": "limited"
     }
   ],
   "browser": {
     "meta": {
-      "generatedAt": "2026/10/29 02:41:36",
+      "generatedAt": "2026/10/29 21:04:51",
       "browser": "Chrome/155.0.8059.86 (headless)",
       "base": "http://127.0.0.1:5173",
       "gateway": "http://127.0.0.1:4399",
@@ -1191,8 +1207,8 @@
       "conclusion": "浏览器侧页面与关键交互均已实现并可触发；未发现阻断性缺失。"
     },
     "summary": {
-      "total": 37,
-      "passed": 37,
+      "total": 40,
+      "passed": 40,
       "failed": 0,
       "failedList": []
     },
@@ -1202,15 +1218,15 @@
         "id": "B-A1",
         "title": "游客首页、分类、排序与 20 条限制",
         "ok": true,
-        "ms": 454,
-        "info": "商品卡片 20 个，游客限制提示可见"
+        "ms": 511,
+        "info": "商品卡片 20 个；二级分类默认折叠，点击一级分类展开，再次点击收起"
       },
       {
         "suite": "A 基础页面与认证",
         "id": "B-A2",
         "title": "游客访问商品详情被引导登录",
         "ok": true,
-        "ms": 447,
+        "ms": 464,
         "info": "路由守卫生效"
       },
       {
@@ -1218,7 +1234,7 @@
         "id": "B-A3",
         "title": "登录页控件完整",
         "ok": true,
-        "ms": 449,
+        "ms": 437,
         "info": "账号、密码、验证码、找回密码、注册入口均可见"
       },
       {
@@ -1226,7 +1242,7 @@
         "id": "B-A4",
         "title": "登录表单可实际登录",
         "ok": true,
-        "ms": 943,
+        "ms": 898,
         "info": "alice 登录成功并回到首页"
       },
       {
@@ -1234,7 +1250,7 @@
         "id": "B-A5",
         "title": "注册页控件完整",
         "ok": true,
-        "ms": 448,
+        "ms": 606,
         "info": "头像、用户名、邮箱、密码、确认密码、验证码控件可见"
       },
       {
@@ -1242,7 +1258,7 @@
         "id": "B-A6",
         "title": "找回密码两个页面可用",
         "ok": true,
-        "ms": 894,
+        "ms": 915,
         "info": "发码页与重置页均渲染"
       },
       {
@@ -1250,7 +1266,7 @@
         "id": "B-A7",
         "title": "登录后顶部用户菜单与发布入口存在",
         "ok": true,
-        "ms": 433,
+        "ms": 451,
         "info": "用户菜单与发布 FAB 可见"
       },
       {
@@ -1258,7 +1274,7 @@
         "id": "B-A8",
         "title": "点击顶部 Logo 回首页并整页刷新",
         "ok": true,
-        "ms": 618,
+        "ms": 622,
         "info": "已整页刷新到首页"
       },
       {
@@ -1266,7 +1282,7 @@
         "id": "B-U1",
         "title": "个人中心资料、统计与 7 个页签",
         "ok": true,
-        "ms": 437,
+        "ms": 436,
         "info": "资料卡、统计与 7 个页签齐全"
       },
       {
@@ -1274,7 +1290,7 @@
         "id": "B-U2",
         "title": "我的收藏页可用",
         "ok": true,
-        "ms": 449,
+        "ms": 446,
         "info": "空状态正常"
       },
       {
@@ -1282,7 +1298,7 @@
         "id": "B-U3",
         "title": "收货地址页和全国三级地区选择可用",
         "ok": true,
-        "ms": 1314,
+        "ms": 1286,
         "info": "可选浙江省 / 杭州市 / 西湖区"
       },
       {
@@ -1290,7 +1306,7 @@
         "id": "B-U4",
         "title": "我的评价页可用",
         "ok": true,
-        "ms": 444,
+        "ms": 445,
         "info": "评价列表正常"
       },
       {
@@ -1298,7 +1314,7 @@
         "id": "B-U5",
         "title": "草稿箱页签可用",
         "ok": true,
-        "ms": 448,
+        "ms": 465,
         "info": "草稿箱路由与内容区正常"
       },
       {
@@ -1306,7 +1322,7 @@
         "id": "B-U6",
         "title": "个人中心可点击头像上传并保存",
         "ok": true,
-        "ms": 631,
+        "ms": 615,
         "info": "头像上传、资料保存和页面刷新正常"
       },
       {
@@ -1314,7 +1330,7 @@
         "id": "B-U7",
         "title": "个人资料可手动修改省市区",
         "ok": true,
-        "ms": 1471,
+        "ms": 1488,
         "info": "手动修改省市区并保存成功"
       },
       {
@@ -1322,7 +1338,7 @@
         "id": "B-P1",
         "title": "首页商品卡可进入详情",
         "ok": true,
-        "ms": 598,
+        "ms": 596,
         "info": "卡片点击、详情路由与评论区域正常"
       },
       {
@@ -1330,7 +1346,7 @@
         "id": "B-P2",
         "title": "商品详情核心控件完整",
         "ok": true,
-        "ms": 449,
+        "ms": 450,
         "info": "购买、联系卖家、收藏、卖家卡片、评论区均可见"
       },
       {
@@ -1338,7 +1354,7 @@
         "id": "B-P3A",
         "title": "卖家主页路由可独立访问",
         "ok": true,
-        "ms": 445,
+        "ms": 449,
         "info": "卖家主页 /seller/3 正常渲染"
       },
       {
@@ -1346,7 +1362,7 @@
         "id": "B-P3B",
         "title": "商品详情卖家卡片点击可跳转",
         "ok": true,
-        "ms": 590,
+        "ms": 592,
         "info": "卖家卡片点击后进入卖家主页"
       },
       {
@@ -1354,7 +1370,7 @@
         "id": "B-P4",
         "title": "发布页表单与图片上传入口完整",
         "ok": true,
-        "ms": 433,
+        "ms": 449,
         "info": "表单、图片入口、发布与存草稿按钮齐全"
       },
       {
@@ -1362,15 +1378,15 @@
         "id": "B-P5",
         "title": "存草稿通过浏览器实际成功",
         "ok": true,
-        "ms": 751,
-        "info": "草稿已保存并出现在草稿箱，id=457"
+        "ms": 825,
+        "info": "草稿已保存并出现在草稿箱，id=652"
       },
       {
         "suite": "P 商品",
         "id": "B-P6",
         "title": "草稿编辑页可回填并可发布",
         "ok": true,
-        "ms": 447,
+        "ms": 457,
         "info": "标题正确回填，编辑态发布按钮存在"
       },
       {
@@ -1378,7 +1394,7 @@
         "id": "B-P7",
         "title": "商品评论编辑器可用",
         "ok": true,
-        "ms": 446,
+        "ms": 449,
         "info": "评论输入、图片上传入口与发表按钮可见"
       },
       {
@@ -1386,7 +1402,7 @@
         "id": "B-P8",
         "title": "购买页地址、订单信息与下单入口完整",
         "ok": true,
-        "ms": 462,
+        "ms": 437,
         "info": "地址、商品、运费、备注与确认下单均可见"
       },
       {
@@ -1402,7 +1418,7 @@
         "id": "B-O2",
         "title": "订单支付确认弹窗可由浏览器触发",
         "ok": true,
-        "ms": 604,
+        "ms": 587,
         "info": "临时订单已提交到订单页，支付确认弹窗成功打开"
       },
       {
@@ -1410,15 +1426,31 @@
         "id": "B-O3",
         "title": "退款/售后页签可加载",
         "ok": true,
-        "ms": 1150,
+        "ms": 1153,
         "info": "退款/售后页签与内容区正常加载"
+      },
+      {
+        "suite": "O 订单与支付",
+        "id": "B-O5",
+        "title": "买家可在订单页成功提交退款申请",
+        "ok": true,
+        "ms": 1046,
+        "info": "退款申请已从订单页成功提交"
+      },
+      {
+        "suite": "O 订单与支付",
+        "id": "B-O6",
+        "title": "卖家可从退款通知进入审批并同意退款",
+        "ok": true,
+        "ms": 1258,
+        "info": "卖家通知入口、卖家视角退款列表、同意退款操作及状态流转均正常"
       },
       {
         "suite": "O 订单与支付",
         "id": "B-O4",
         "title": "卖家订单卡显示买家姓名电话地址",
         "ok": true,
-        "ms": 620,
+        "ms": 609,
         "info": "买家姓名、电话、地址均显示"
       },
       {
@@ -1426,7 +1458,7 @@
         "id": "B-M1",
         "title": "聊天中心会话列表与系统通知入口可用",
         "ok": true,
-        "ms": 450,
+        "ms": 449,
         "info": "会话搜索、会话列表、系统通知入口可见"
       },
       {
@@ -1434,7 +1466,7 @@
         "id": "B-M2",
         "title": "指定会话可打开且输入区完整",
         "ok": true,
-        "ms": 434,
+        "ms": 448,
         "info": "深链会话、消息区、输入框与发送按钮正常"
       },
       {
@@ -1442,7 +1474,7 @@
         "id": "B-M3",
         "title": "系统通知页签可打开",
         "ok": true,
-        "ms": 939,
+        "ms": 940,
         "info": "系统通知页签正常"
       },
       {
@@ -1450,15 +1482,23 @@
         "id": "B-M4",
         "title": "管理员下架后卖家能在通知页看到原因",
         "ok": true,
-        "ms": 501,
-        "info": "卖家通知页可见下架标题、商品名和原因"
+        "ms": 1269,
+        "info": "卖家通知页可见下架原因；进入后全部通知已读且红点清除"
+      },
+      {
+        "suite": "M 聊天",
+        "id": "B-M5",
+        "title": "订单卡片显示商品信息并跳转商品详情",
+        "ok": true,
+        "ms": 952,
+        "info": "订单卡片显示商品图/商品名，点击后进入商品详情且不显示订单号"
       },
       {
         "suite": "X 管理后台",
         "id": "B-X1",
         "title": "管理员用户管理页与控制项完整",
         "ok": true,
-        "ms": 443,
+        "ms": 442,
         "info": "搜索、角色/状态筛选、封禁与上架权限操作可见"
       },
       {
@@ -1466,7 +1506,7 @@
         "id": "B-X2",
         "title": "管理员商品页可按已下架状态快速筛选",
         "ok": true,
-        "ms": 1255,
+        "ms": 1266,
         "info": "已下架筛选正常，rows=10"
       },
       {
@@ -1474,7 +1514,7 @@
         "id": "B-X3",
         "title": "管理员分类管理页完整",
         "ok": true,
-        "ms": 435,
+        "ms": 436,
         "info": "新建、加子分类、重命名、删除入口可见"
       },
       {
@@ -1482,7 +1522,7 @@
         "id": "B-X4",
         "title": "管理员订单与退款页完整",
         "ok": true,
-        "ms": 434,
+        "ms": 429,
         "info": "订单统计、订单/退款页签与表格区正常"
       },
       {
@@ -1490,7 +1530,7 @@
         "id": "B-X5",
         "title": "超级管理员角色操作入口可见",
         "ok": true,
-        "ms": 449,
+        "ms": 450,
         "info": "超级管理员可看到“设置角色”操作"
       }
     ]

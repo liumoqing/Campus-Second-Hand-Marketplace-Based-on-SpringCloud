@@ -70,7 +70,7 @@ public class ProductService {
                 .ge(q.getPriceMin() != null, Product::getPrice, q.getPriceMin())
                 .le(q.getPriceMax() != null, Product::getPrice, q.getPriceMax());
         if (q.getCategoryId() != null) {
-            w.eq(Product::getCategoryId, q.getCategoryId());
+            w.in(Product::getCategoryId, categoryService.selfAndChildIds(q.getCategoryId()));
         }
         if (StringUtils.hasText(q.getKeyword())) {
             w.and(x -> x.like(Product::getTitle, q.getKeyword()).or().like(Product::getDescription, q.getKeyword()));

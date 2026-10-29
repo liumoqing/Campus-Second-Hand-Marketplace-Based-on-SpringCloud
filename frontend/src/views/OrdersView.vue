@@ -21,7 +21,7 @@ const tabs = [
 ]
 
 const active = ref((route.query.tab as string) || 'UNPAID')
-const role = ref<'bought' | 'sold'>('bought')
+const role = ref<'bought' | 'sold'>(route.query.role === 'sold' ? 'sold' : 'bought')
 const orders = ref<OrderItem[]>([])
 const refunds = ref<any[]>([])
 const loading = ref(false)
@@ -62,7 +62,7 @@ async function load(reset = false) {
   loading.value = true
   try {
     if (active.value === 'REFUND') {
-      const page = await orderApi.refundPage({ pageNum: pageNum.value, pageSize })
+      const page = await orderApi.refundPage({ role: role.value, pageNum: pageNum.value, pageSize })
       refunds.value = reset ? page.records : [...refunds.value, ...page.records]
       finished.value = refunds.value.length >= Number(page.total)
       return
@@ -153,12 +153,27 @@ async function submitReview() {
 const refundVisible = ref(false)
 const refundTarget = ref<OrderItem | null>(null)
 const refundForm = reactive({ amount: 0, reason: '' })
+const refundStatusText: Record<string, string> = {
+  APPLYING: '待处理', AGREED: '已同意', REJECTED: '已拒绝', REFUNDED: '已退款', CLOSED: '已关闭'
+}
 
 function openRefund(o: OrderItem) {
   refundTarget.value = o
   refundForm.amount = Number(o.payAmount)
   refundForm.reason = ''
   refundVisible.value = true
+}
+
+async function handleRefund(r: any, agree: boolean) {
+  const action = agree ? '同意退款' : '拒绝退款'
+  const { value } = await ElMessageBox.prompt('可填写处理备注', `确认${action}`, {
+    confirmButtonText: `确认${action}`,
+    cancelButtonText: '取消',
+    inputPlaceholder: '处理备注（选填）'
+  })
+  await orderApi.handleRefund(String(r.refundId || r.id), { agree, remark: value || undefined })
+  ElMessage.success('退款已处理')
+  await load(true)
 }
 
 async function submitRefund() {
@@ -178,7 +193,22 @@ async function submitRefund() {
 }
 
 watch(active, () => load(true))
-watch(role, () => load(true))
+watch(role, () => {
+  const queryRole = role.value === 'sold' ? 'sold' : undefined
+  if ((route.query.role as string | undefined) !== queryRole) {
+    router.replace({ query: { ...route.query, role: queryRole } })
+  }
+  load(true)
+})
+watch(
+  () => [route.query.tab, route.query.role],
+  ([tab, queryRole]) => {
+    const nextTab = typeof tab === 'string' && tabs.some((t) => t.key === tab) ? tab : active.value
+    if (nextTab !== active.value) active.value = nextTab
+    const nextRole = queryRole === 'sold' ? 'sold' : 'bought'
+    if (nextRole !== role.value) role.value = nextRole
+  }
+)
 onMounted(() => load(true))
 </script>
 
@@ -198,13 +228,18 @@ onMounted(() => load(true))
 
     <div v-loading="loading">
       <template v-if="active === 'REFUND'">
-        <div v-for="r in refunds" :key="r.id || r.refundNo" class="order mall-card">
+        <div v-for="r in refunds" :key="r.refundId || r.id || r.refundNo" class="order mall-card">
           <div class="o-head">
             <span class="o-no">退款单 {{ r.refundNo }}</span>
-            <el-tag size="small">{{ r.status }}</el-tag>
+            <el-tag size="small">{{ refundStatusText[r.status] || r.status }}</el-tag>
           </div>
-          <div class="o-line">金额 ¥{{ r.amount }} · 原因：{{ r.reason }}</div>
-          <div class="o-line mall-sub">申请时间 {{ r.createTime }}</div>
+          <div class="o-line">订单 {{ r.orderNo }} · 金额 ¥{{ r.amount }}</div>
+          <div class="o-line">原因：{{ r.reason }}</div>
+          <div class="o-line mall-sub">申请时间 {{ r.applyTime || r.createTime }}</div>
+          <div v-if="role === 'sold' && r.status === 'APPLYING'" class="o-actions refund-actions">
+            <el-button type="primary" size="small" @click="handleRefund(r, true)">同意退款</el-button>
+            <el-button type="danger" size="small" @click="handleRefund(r, false)">拒绝退款</el-button>
+          </div>
         </div>
         <el-empty v-if="!refunds.length" description="没有退款/售后记录" />
       </template>
@@ -241,8 +276,10 @@ onMounted(() => load(true))
 
           <div class="o-actions">
             <template v-if="o.status === 'UNPAID'">
-              <el-button size="small" @click="cancel(o)">取消订单</el-button>
-              <el-button type="primary" size="small" @click="pay(o)">去支付</el-button>
+              <template v-if="!isSeller(o)">
+                <el-button size="small" @click="cancel(o)">取消订单</el-button>
+                <el-button type="primary" size="small" @click="pay(o)">去支付</el-button>
+              </template>
             </template>
             <template v-else-if="o.status === 'UNSHIPPED'">
               <el-button v-if="isSeller(o)" type="primary" size="small" @click="ship(o)">发货</el-button>
@@ -251,7 +288,7 @@ onMounted(() => load(true))
             <template v-else-if="o.status === 'UNRECEIVED'">
               <span v-if="o.logisticsNo" class="mall-sub">物流单号 {{ o.logisticsNo }}</span>
               <el-button v-if="!isSeller(o)" type="primary" size="small" @click="receive(o)">确认收货</el-button>
-              <el-button size="small" @click="openRefund(o)">申请售后</el-button>
+              <el-button v-if="!isSeller(o)" size="small" @click="openRefund(o)">申请售后</el-button>
             </template>
             <template v-else-if="o.status === 'COMPLETED'">
               <el-button
@@ -262,7 +299,7 @@ onMounted(() => load(true))
               >
                 去评价
               </el-button>
-              <el-button size="small" @click="openRefund(o)">申请售后</el-button>
+              <el-button v-if="!isSeller(o)" size="small" @click="openRefund(o)">申请售后</el-button>
             </template>
             <el-button size="small" link @click="router.push(`/product/${o.productId}`)">查看商品</el-button>
           </div>
@@ -302,7 +339,7 @@ onMounted(() => load(true))
           <el-input-number v-model="refundForm.amount" :min="0.01" :precision="2" />
         </el-form-item>
         <el-form-item label="原因">
-          <el-input v-model="refundForm.reason" type="textarea" :rows="3" maxlength="200" show-word-limit />
+          <el-input v-model="refundForm.reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="请填写退款原因" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -377,6 +414,7 @@ onMounted(() => load(true))
 .o-amount {
   text-align: right;
 }
+.refund-actions { margin-top: 8px; }
 .buyer-info {
   margin-top: 8px;
   padding: 8px 10px;

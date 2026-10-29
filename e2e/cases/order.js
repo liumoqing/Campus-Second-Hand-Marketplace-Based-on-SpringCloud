@@ -204,15 +204,27 @@ module.exports = {
       ctx.refundOrderNo = o.orderNo;
       const d = ok(await get('/order/' + o.orderNo, { token: bob() }));
       t.eq(d.status, 'REFUNDING', 'status');
-      return 'refundId=' + ctx.refundId;
+      const notices = ok(await get('/message/notices?type=REFUND&pageNum=1&pageSize=50', { token: alice() }), '卖家退款通知');
+      const sellerNotice = notices.records.find(n => n.bizId === o.orderNo && n.title === '退款申请待处理');
+      t.assert(sellerNotice, '卖家未收到退款申请通知');
+      t.eq(sellerNotice.type, 'REFUND', '通知类型');
+      const soldRefunds = ok(await get('/order/refund/page?role=sold&pageNum=1&pageSize=50', { token: alice() }), '卖家退款列表');
+      const sellerRefund = soldRefunds.records.find(r => String(r.refundId || r.id) === ctx.refundId);
+      t.assert(sellerRefund, '卖家的退款/售后列表未出现该申请');
+      return `refundId=${ctx.refundId}, notice=${sellerNotice.noticeId}`;
     });
 
     await t.test('O13-拒绝', '卖家拒绝退款：订单按 before_status 回到 UNSHIPPED；一单一次故再次申请 40007', async () => {
+      const forbidden = await put('/order/refund/' + ctx.refundId + '/handle', { agree: false, remark: '越权处理' }, { token: bob() });
+      expectCode(forbidden, 10003, '买家不能审批退款');
       ok(await put('/order/refund/' + ctx.refundId + '/handle', { agree: false, remark: '商品无问题' }, { token: alice() }), '拒绝退款');
       const d = ok(await get('/order/' + ctx.refundOrderNo, { token: bob() }));
       t.eq(d.status, 'UNSHIPPED', '拒绝后状态');
       const again = await post('/order/' + ctx.refundOrderNo + '/refund', { amount: 100, reason: '再申请一次' }, { token: bob() });
       expectCode(again, 40007, '一单一次（文档 §O12：uk_order 兜底）');
+      const notices = ok(await get('/message/notices?type=REFUND&pageNum=1&pageSize=50', { token: bob() }), '买家退款结果通知');
+      const rejected = notices.records.find(n => n.bizId === ctx.refundOrderNo && n.title === '退款申请已拒绝');
+      t.assert(rejected, '买家未收到退款拒绝通知');
       return 'ok';
     });
 
@@ -229,6 +241,9 @@ module.exports = {
       t.eq(pay.status, 'REFUNDED', '支付单状态');
       const p = ok(await get('/product/' + pid, { token: alice() }));
       t.eq(p.status, 'ON_SALE', '商品应回收为在售');
+      const notices = ok(await get('/message/notices?type=REFUND&pageNum=1&pageSize=50', { token: bob() }), '买家退款结果通知');
+      const approved = notices.records.find(n => n.bizId === o.orderNo && n.title === '退款已同意');
+      t.assert(approved, '买家未收到退款同意通知');
       return 'ok';
     });
 

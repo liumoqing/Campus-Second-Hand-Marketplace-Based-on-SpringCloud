@@ -268,7 +268,17 @@ async function main() {
       const cards = await cdp.count('.card');
       if (cards < 1 || cards > 20) throw new Error(`游客商品卡片数量异常: ${cards}`);
       if (!(await cdp.exists('.cats')) || !(await cdp.exists('.sort'))) throw new Error('分类栏或排序栏不存在');
-      return `商品卡片 ${cards} 个，游客限制提示可见`;
+      if (!(await cdp.exists('.cat.top.has-children')) || !(await cdp.exists('.cat-arrow'))) {
+        throw new Error('一级分类缺少可展开标识');
+      }
+      if ((await cdp.count('.cat.sub')) !== 0) throw new Error('二级分类默认未折叠');
+      if (!(await cdp.clickSelector('.cat.top.has-children'))) throw new Error('一级分类不可点击');
+      await cdp.waitFor(`document.querySelectorAll('.cat.sub').length > 0`, 5000, '点击一级分类展开二级');
+      const expandedCategoryId = await cdp.evaluate(`return new URLSearchParams(location.search).get('categoryId') || '';`);
+      if (!expandedCategoryId) throw new Error('展开一级分类时未同步分类筛选');
+      if (!(await cdp.clickSelector('.cat.top.has-children'))) throw new Error('一级分类无法再次点击');
+      await cdp.waitFor(`document.querySelectorAll('.cat.sub').length === 0`, 5000, '再次点击收起二级');
+      return `商品卡片 ${cards} 个；二级分类默认折叠，点击一级分类展开，再次点击收起`;
     });
 
     await browserTest(cdp, 'B-A2', '游客访问商品详情被引导登录', async () => {
@@ -309,7 +319,9 @@ async function main() {
 
     await browserTest(cdp, 'B-A5', '注册页控件完整', async () => {
       await clearAuth(cdp);
-      await visit(cdp, '/register', ['注册']);
+      await visit(cdp, '/login', ['登录']);
+      if (!(await cdp.clickText('立即注册', '.el-button'))) throw new Error('“立即注册”入口不可点击');
+      await cdp.waitFor(`location.pathname === '/register'`, 10000, '跳转注册页');
       for (const ph of ['4~20 位字母、数字或下划线', '用于登录与找回密码', '8~20 位，含字母和数字', '再输入一次密码', '验证码']) {
         await cdp.waitForPlaceholder(ph);
       }
@@ -606,6 +618,119 @@ async function main() {
       return '退款/售后页签与内容区正常加载';
     });
 
+    await browserTest(cdp, 'B-O5', '买家可在订单页成功提交退款申请', async () => {
+      const title = `Codex退款回归${ctx.suffix}`;
+      const product = await api('POST', '/product', {
+        title, categoryId: ctx.categoryId, price: 11.11, conditionLevel: 9,
+        freightMode: 'DISTANCE', province: '湖北省', city: '武汉市', district: '洪山区',
+        images: [alice.userInfo.avatar], status: 'ON_SALE'
+      }, alice.accessToken);
+      if (product.json.code !== 0) throw new Error('创建退款测试商品失败：' + product.text);
+      const pid = product.json.data.productId;
+      let orderNo = '';
+      try {
+        const addr = await api('GET', '/user/addresses', undefined, bob.accessToken);
+        if (!addr.json.data?.length) throw new Error('bob 没有测试收货地址');
+        const created = await api('POST', '/order/create', { productId: pid, addressId: addr.json.data[0].id }, bob.accessToken);
+        if (created.json.code !== 0) throw new Error('创建退款测试订单失败：' + created.text);
+        orderNo = created.json.data.orderNo;
+        const paid = await api('POST', '/payment/pay', { orderNo }, bob.accessToken);
+        if (paid.json.code !== 0) throw new Error('支付退款测试订单失败：' + paid.text);
+
+        await setAuth(cdp, bob);
+        await visit(cdp, '/orders?tab=UNSHIPPED', [title]);
+        if (!(await clickInsideCard(cdp, title, '申请退款'))) throw new Error('申请退款按钮不可点击');
+        await cdp.waitForText('申请退款 / 售后', 6000);
+        await cdp.fillPlaceholder('请填写退款原因', '浏览器退款回归');
+        if (!(await cdp.clickText('提交申请', '.el-dialog button'))) throw new Error('提交申请不可点击');
+        await cdp.waitForText('退款申请已提交', 10000);
+        return '退款申请已从订单页成功提交';
+      } finally {
+        try {
+          if (orderNo) {
+            const page = await api('GET', '/order/refund/page?role=sold&pageNum=1&pageSize=50', undefined, alice.accessToken);
+            const row = (page.json?.data?.records || []).find(r => r.orderNo === orderNo && r.status === 'APPLYING');
+            if (row) await api('PUT', `/order/refund/${row.id}/handle`, { agree: true, remark: '浏览器测试清理' }, alice.accessToken);
+          }
+          await api('DELETE', `/product/${pid}`, undefined, alice.accessToken);
+        } catch (_) {}
+      }
+    });
+
+    await browserTest(cdp, 'B-O6', '卖家可从退款通知进入审批并同意退款', async () => {
+      const title = `Codex卖家退款审批${ctx.suffix}`;
+      let pid = '';
+      let orderNo = '';
+      try {
+        const product = await api('POST', '/product', {
+          title, categoryId: ctx.categoryId, price: 12.34, conditionLevel: 9,
+          freightMode: 'DISTANCE', province: '湖北省', city: '武汉市', district: '洪山区',
+          images: [alice.userInfo.avatar], status: 'ON_SALE'
+        }, alice.accessToken);
+        if (product.json.code !== 0) throw new Error('创建审批回归商品失败：' + product.text);
+        pid = product.json.data.productId;
+
+        const addr = await api('GET', '/user/addresses', undefined, bob.accessToken);
+        if (!addr.json.data?.length) throw new Error('bob 没有测试收货地址');
+        const created = await api('POST', '/order/create', {
+          productId: pid, addressId: addr.json.data[0].id
+        }, bob.accessToken);
+        if (created.json.code !== 0) throw new Error('创建审批回归订单失败：' + created.text);
+        orderNo = created.json.data.orderNo;
+        const paid = await api('POST', '/payment/pay', { orderNo }, bob.accessToken);
+        if (paid.json.code !== 0) throw new Error('支付审批回归订单失败：' + paid.text);
+        const applied = await api('POST', `/order/${orderNo}/refund`, {
+          amount: 12.34, reason: '浏览器卖家审批回归'
+        }, bob.accessToken);
+        if (applied.json.code !== 0) throw new Error('提交审批回归退款失败：' + applied.text);
+
+        await setAuth(cdp, alice);
+        await visit(cdp, '/chat?tab=notice', ['系统通知']);
+        await cdp.waitForText('退款申请待处理', 10000);
+        await cdp.waitForText(orderNo, 10000);
+        await cdp.waitFor(`[...document.querySelectorAll('.notice')]
+          .some(x => (x.innerText || '').includes(${JSON.stringify(orderNo)}) && x.querySelector('.notice-op button'))`,
+          10000, '目标退款通知及处理按钮');
+        try {
+          await cdp.evaluate(`(() => {
+          const notice = [...document.querySelectorAll('.notice')]
+            .find(x => (x.innerText || '').includes(${JSON.stringify(orderNo)}));
+          const button = notice?.querySelector('.notice-op button');
+          if (!button) return false;
+          button.click();
+          return true;
+        })()`);
+        } catch (_) {
+          // 点击触发路由跳转时 CDP 执行上下文可能被销毁，以页面 URL 作为成功依据。
+        }
+        await cdp.waitFor(`location.pathname === '/orders' && location.search.includes('tab=REFUND') && location.search.includes('role=sold')`, 10000, '退款通知跳转卖家审批页');
+        await cdp.waitForText(orderNo, 10000);
+        const soldSelected = await cdp.evaluate(`return [...document.querySelectorAll('.el-radio-button')]
+          .some(x => (x.innerText || '').includes('我卖出的') && x.classList.contains('is-active'));`);
+        if (!soldSelected) throw new Error('退款通知跳转后未选中“我卖出的”');
+        if (!(await cdp.exists('.refund-actions'))) throw new Error('卖家退款审批操作区缺失');
+        if (!(await clickInsideCard(cdp, orderNo, '同意退款'))) throw new Error('目标退款单的同意按钮不可点击');
+        await cdp.waitForText('确认同意退款', 8000);
+        await cdp.fillPlaceholder('处理备注（选填）', '浏览器审批通过');
+        if (!(await cdp.clickText('确认同意退款', '.el-message-box button'))) throw new Error('确认审批按钮不可点击');
+        await cdp.waitForText('退款已处理', 10000);
+
+        const list = await api('GET', '/order/refund/page?role=sold&pageNum=1&pageSize=50', undefined, alice.accessToken);
+        const row = (list.json?.data?.records || []).find(r => r.orderNo === orderNo);
+        if (!row || row.status !== 'REFUNDED') throw new Error('审批后退款单状态异常：' + JSON.stringify(row));
+        return '卖家通知入口、卖家视角退款列表、同意退款操作及状态流转均正常';
+      } finally {
+        try {
+          if (orderNo) {
+            const page = await api('GET', '/order/refund/page?role=sold&pageNum=1&pageSize=50', undefined, alice.accessToken);
+            const row = (page.json?.data?.records || []).find(r => r.orderNo === orderNo && r.status === 'APPLYING');
+            if (row) await api('PUT', `/order/refund/${row.id}/handle`, { agree: true, remark: '浏览器测试清理' }, alice.accessToken);
+          }
+          if (pid) await api('DELETE', `/product/${pid}`, undefined, alice.accessToken);
+        } catch (_) {}
+      }
+    });
+
     await browserTest(cdp, 'B-O4', '卖家订单卡显示买家姓名电话地址', async () => {
       await setAuth(cdp, alice);
       await visit(cdp, '/orders?tab=UNSHIPPED', ['我的订单']);
@@ -660,14 +785,91 @@ async function main() {
       try {
         const off = await api('PUT', `/product/admin/${pid}/off-shelf`, { reason: '通知回归验证' }, admin.accessToken);
         if (off.json.code !== 0) throw new Error('管理员下架失败：' + off.text);
+        const before = await api('GET', '/message/notices/unread-count', undefined, alice.accessToken);
+        if (before.json.code !== 0 || Number(before.json.data.total) < 1) {
+          throw new Error('下架后通知未读数应大于 0：' + before.text);
+        }
         await setAuth(cdp, alice);
         await visit(cdp, '/chat?tab=notice', ['系统通知']);
         await cdp.waitForText('商品已被平台下架', 10000);
         await cdp.waitForText(title, 10000);
         await cdp.waitForText('通知回归验证', 10000);
-        return '卖家通知页可见下架标题、商品名和原因';
+        await sleep(700);
+        const after = await api('GET', '/message/notices/unread-count', undefined, alice.accessToken);
+        if (after.json.code !== 0 || Number(after.json.data.total) !== 0) {
+          throw new Error('进入通知页后未读数未清零：' + after.text);
+        }
+        const badgeVisible = await cdp.evaluate(`return [...document.querySelectorAll('.conv.sys .el-badge__content')]
+          .some(x => x.getClientRects().length > 0 && getComputedStyle(x).display !== 'none');`);
+        if (badgeVisible) throw new Error('通知已全部已读，但系统通知红点仍显示');
+        return '卖家通知页可见下架原因；进入后全部通知已读且红点清除';
       } finally {
         try { await api('DELETE', `/product/${pid}`, undefined, alice.accessToken); } catch (_) {}
+      }
+    });
+
+    await browserTest(cdp, 'B-M5', '订单卡片显示商品信息并跳转商品详情', async () => {
+      const title = `Codex订单卡片${ctx.suffix}`;
+      let pid = '';
+      let orderNo = '';
+      try {
+        const product = await api('POST', '/product', {
+          title, categoryId: ctx.categoryId, price: 18.88, conditionLevel: 9,
+          freightMode: 'DISTANCE', province: '湖北省', city: '武汉市', district: '洪山区',
+          images: [alice.userInfo.avatar], status: 'ON_SALE'
+        }, alice.accessToken);
+        if (product.json.code !== 0) throw new Error('创建订单卡片测试商品失败：' + product.text);
+        pid = product.json.data.productId;
+
+        const addr = await api('GET', '/user/addresses', undefined, bob.accessToken);
+        if (!addr.json.data?.length) throw new Error('bob 没有测试收货地址');
+        const created = await api('POST', '/order/create', {
+          productId: pid, addressId: addr.json.data[0].id
+        }, bob.accessToken);
+        if (created.json.code !== 0) throw new Error('创建订单卡片测试订单失败：' + created.text);
+        orderNo = created.json.data.orderNo;
+        const paid = await api('POST', '/payment/pay', { orderNo }, bob.accessToken);
+        if (paid.json.code !== 0) throw new Error('支付订单卡片测试订单失败：' + paid.text);
+        const shipped = await api('PUT', `/order/${orderNo}/ship`, { logisticsNo: 'CARD-E2E' }, alice.accessToken);
+        if (shipped.json.code !== 0) throw new Error('发货订单卡片测试订单失败：' + shipped.text);
+
+        const conversations = await api('GET', '/message/conversations?pageNum=1&pageSize=50', undefined, bob.accessToken);
+        const conversation = (conversations.json?.data?.records || [])
+          .find(c => String(c.productId) === String(pid));
+        if (!conversation) throw new Error('未找到订单卡片所属会话');
+
+        await setAuth(cdp, bob);
+        await visit(cdp, `/chat?cid=${conversation.conversationId}`, [title]);
+        const compactTitle = title.replace(/\s+/g, '');
+        await cdp.waitFor(`[...document.querySelectorAll('.card-bubble.order')]
+          .some(x => (x.innerText || '').replace(/\\s+/g, '').includes(${JSON.stringify(compactTitle)}))`,
+          10000, '订单商品卡片渲染');
+        const cardText = await cdp.evaluate(`return [...document.querySelectorAll('.card-bubble.order')]
+          .map(x => x.innerText || '').join('\\n---\\n');`);
+        const cardImage = await cdp.evaluate(`return [...document.querySelectorAll('.card-bubble.order')]
+          .filter(x => (x.innerText || '').replace(/\\s+/g, '').includes(${JSON.stringify(compactTitle)}))
+          .map(x => x.querySelector('img')?.src || '')[0] || '';`);
+        if (!cardText.replace(/\s+/g, '').includes(compactTitle)) throw new Error('订单卡片未显示商品名');
+        if (!cardImage) throw new Error('订单卡片未显示商品图');
+        if (cardText.includes(orderNo)) throw new Error('订单卡片仍显示订单号：' + cardText);
+        await cdp.evaluate(`(() => {
+          const card = [...document.querySelectorAll('.card-bubble.order')]
+            .find(x => (x.innerText || '').replace(/\\s+/g, '').includes(${JSON.stringify(compactTitle)}));
+          if (card) card.dataset.codexProductCard = '1';
+          return !!card;
+        })()`);
+        try {
+          await cdp.evaluate(`document.querySelector('[data-codex-product-card="1"]')?.click(); return true;`);
+        } catch (_) {
+          // 路由跳转可能销毁执行上下文，以下方 URL 断言为准。
+        }
+        await cdp.waitFor(`location.pathname === '/product/${pid}'`, 10000, '订单卡片跳转商品详情');
+        return '订单卡片显示商品图/商品名，点击后进入商品详情且不显示订单号';
+      } finally {
+        try {
+          if (orderNo) await api('PUT', `/order/${orderNo}/receive`, undefined, bob.accessToken);
+          if (pid) await api('DELETE', `/product/${pid}`, undefined, alice.accessToken);
+        } catch (_) {}
       }
     });
 
@@ -758,10 +960,11 @@ async function main() {
   writeBrowserReport(meta, s, require('../lib/harness').results);
   console.log(`\n== 浏览器功能验收完成：${s.passed}/${s.total} 通过，${s.failed} 失败 ==`);
   console.log('报告：' + REPORT_MD);
-  process.exitCode = s.failed ? 2 : 0;
+  // 关闭浏览器后显式退出，避免 CDP/网络句柄让测试进程滞留。
+  process.exit(s.failed ? 2 : 0);
 }
 
 main().catch(e => {
   console.error('[浏览器验收异常]', e && e.stack ? e.stack : e);
-  process.exitCode = 1;
+  process.exit(1);
 });

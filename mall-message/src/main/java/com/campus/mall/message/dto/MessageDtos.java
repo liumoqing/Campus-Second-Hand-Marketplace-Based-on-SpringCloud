@@ -59,6 +59,7 @@ public class MessageDtos {
         @NotNull
         private Long productId;
         private String productTitle;
+        private String productCover;
         private String statusText;
         private String actionText;
     }

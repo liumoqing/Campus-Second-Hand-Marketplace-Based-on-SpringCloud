@@ -115,16 +115,24 @@ module.exports = {
 
     // ---------- 订单卡片 ----------
     await t.test('M13', '内部写订单卡片（幂等，不重复）', async () => {
+      const orderNo = 'E2E' + Date.now();
+      const productCover = 'http://127.0.0.1:4402/files/e2e-card-cover.png';
       const body = {
-        orderNo: 'E2E' + Date.now(), cardType: 'ORDER_SHIPPED',
+        orderNo, cardType: 'ORDER_SHIPPED',
         buyerId: '4', sellerId: '3', productId: String(ctx.seedProductId || 1),
-        productTitle: 'E2E 卡片商品', statusText: '卖家已发货', actionText: '查看订单'
+        productTitle: 'E2E 卡片商品', productCover,
+        statusText: '卖家已发货', actionText: '查看订单'
       };
       const r1 = await post('/inner/message/card', body, { internal: true, port: PORT });
       t.assert(r1.json && r1.json.code === 0, '首次写卡片失败：' + r1.raw);
       const r2 = await post('/inner/message/card', body, { internal: true, port: PORT });
       t.assert(r2.json && r2.json.code === 0, '重复写卡片失败：' + r2.raw);
-      return 'ok';
+      const history = ok(await get('/message/history?conversationId=' + ctx.conversationId + '&size=50', { token: bob() }), '订单卡片历史');
+      const card = history.records.find(m => m.contentType === 'ORDER' && m.content?.orderNo === orderNo);
+      t.assert(card, '历史消息中找不到订单卡片');
+      t.eq(card.content.productTitle, 'E2E 卡片商品', '卡片商品名');
+      t.eq(card.content.productCover, productCover, '卡片商品封面');
+      return '商品名与封面已写入卡片';
     });
 
     // ---------- 通知 ----------
@@ -139,6 +147,23 @@ module.exports = {
       const mark = ok(await put('/message/read', { noticeIds: list.records.map(x => String(x.noticeId || x.id)) }, { token: bob() }), '通知已读');
       t.assert(mark.unreadTotal !== undefined, 'unreadTotal');
       return `notices=${list.total} unread=${unread.total}`;
+    });
+
+    await t.test('M5-通知全部已读', '通知传空数组清空全部未读，而不是只清当前页', async () => {
+      for (let i = 0; i < 2; i++) {
+        const r = await post('/inner/message/notice', {
+          userId: '4', type: 'SYSTEM', title: '批量已读测试' + i,
+          content: '批量已读测试正文', bizType: 'NONE'
+        }, { internal: true, port: PORT });
+        t.assert(r.json && r.json.code === 0, '发通知失败：' + r.raw);
+      }
+      const before = ok(await get('/message/notices/unread-count', { token: bob() }), '通知未读数');
+      t.assert(Number(before.total) >= 2, '未读数应至少为 2，实际 ' + before.total);
+      const read = ok(await put('/message/read', { noticeIds: [] }, { token: bob() }), '全部通知已读');
+      t.assert(read.unreadTotal !== undefined, 'unreadTotal');
+      const after = ok(await get('/message/notices/unread-count', { token: bob() }), '通知未读数清零');
+      t.eq(Number(after.total), 0, '全部通知已读后未读数');
+      return `before=${before.total}, after=${after.total}`;
     });
 
     await t.test('M7', 'GET /inner/message/unread/{userId}', async () => {

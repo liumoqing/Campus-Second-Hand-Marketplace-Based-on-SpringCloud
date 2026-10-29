@@ -7,6 +7,7 @@ import com.campus.mall.common.api.ErrorCode;
 import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.exception.BizException;
 import com.campus.mall.common.security.UserContext;
+import com.campus.mall.order.client.MessageClient;
 import com.campus.mall.order.client.PaymentClient;
 import com.campus.mall.order.client.ProductClient;
 import com.campus.mall.order.dto.RefundDtos;
@@ -48,6 +49,7 @@ public class RefundService {
     private final OrderService orderService;
     private final PaymentClient paymentClient;
     private final ProductClient productClient;
+    private final MessageClient messageClient;
 
     // ---------------- O12 申请退款/售后 ----------------
 
@@ -98,8 +100,72 @@ public class RefundService {
         refundMapper.insert(refund);
 
         orderService.logStatus(order.getId(), beforeStatus, "REFUNDING", buyerId, "BUYER", "申请退款：" + dto.getReason());
+        notifySellerRefundApplied(order, amount);
         return Map.of("refundId", refund.getId(), "refundNo", refund.getRefundNo(),
                 "amount", amount, "status", "APPLYING");
+    }
+
+    /** 买家申请退款后通知卖家处理；通知失败不影响退款单落库。 */
+    private void notifySellerRefundApplied(Order order, BigDecimal amount) {
+        String content = "买家对订单 " + order.getOrderNo() + " 申请退款，金额 ¥" + amount
+                + "，请进入订单页「退款/售后」处理。";
+        try {
+            messageClient.notice(new MessageClient.NoticeBody(
+                    order.getSellerId(), "REFUND", "退款申请待处理", content,
+                    order.getOrderNo(), "ORDER"));
+        } catch (Exception e) {
+            log.warn("退款申请通知卖家失败：orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+        }
+        try {
+            Map<String, Object> product = productSnapshot(order.getProductId());
+            messageClient.card(new MessageClient.CardBody(order.getOrderNo(), "REFUND_APPLIED",
+                    order.getBuyerId(), order.getSellerId(), order.getProductId(),
+                    ProductClient.titleOf(product), ProductClient.coverOf(product),
+                    "买家申请退款，请处理", "处理退款"));
+        } catch (Exception e) {
+            log.warn("退款申请订单卡片推送失败：orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+        }
+    }
+
+    /** 卖家处理退款后通知买家，让审批结果形成完整闭环。 */
+    private void notifyBuyerRefundHandled(Order order, Refund refund, boolean agreed, String remark) {
+        String title = agreed ? "退款已同意" : "退款申请已拒绝";
+        String content = agreed
+                ? "卖家已同意订单 " + order.getOrderNo() + " 的退款申请，退款金额 ¥" + refund.getAmount()
+                    + "，请留意退款到账。"
+                : "卖家拒绝了订单 " + order.getOrderNo() + " 的退款申请。"
+                    + (remark == null || remark.isBlank() ? "" : "原因：" + remark);
+        try {
+            messageClient.notice(new MessageClient.NoticeBody(
+                    order.getBuyerId(), "REFUND", title, content,
+                    order.getOrderNo(), "ORDER"));
+        } catch (Exception e) {
+            log.warn("退款处理结果通知买家失败：orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+        }
+        if (agreed) {
+            try {
+                Map<String, Object> product = productSnapshot(order.getProductId());
+                messageClient.card(new MessageClient.CardBody(order.getOrderNo(), "REFUND_DONE",
+                        order.getSellerId(), order.getBuyerId(), order.getProductId(),
+                        ProductClient.titleOf(product), ProductClient.coverOf(product),
+                        "退款已完成，金额将原路退回", "查看订单"));
+            } catch (Exception e) {
+                log.warn("退款完成订单卡片推送失败：orderNo={}, err={}", order.getOrderNo(), e.getMessage());
+            }
+        }
+    }
+
+    /** 卡片展示商品快照；商品服务异常时通知照常发送，前端用会话商品信息兜底。 */
+    private Map<String, Object> productSnapshot(Long productId) {
+        try {
+            var r = productClient.view(productId);
+            if (r != null && r.getCode() == 0 && r.getData() != null) {
+                return r.getData();
+            }
+        } catch (Exception e) {
+            log.warn("读取退款卡片商品快照失败：productId={}, err={}", productId, e.getMessage());
+        }
+        return Map.of();
     }
 
     // ---------------- O13 卖家处理 ----------------
@@ -135,6 +201,7 @@ public class RefundService {
             }
             orderService.logStatus(order.getId(), "REFUNDING", "REFUNDED", operatorId,
                     admin ? "ADMIN" : "SELLER", "同意退款：" + (dto.getRemark() == null ? "" : dto.getRemark()));
+            notifyBuyerRefundHandled(order, refund, true, dto.getRemark());
             return Map.of("refundId", refundId, "status", "REFUNDED", "orderStatus", "REFUNDED");
         }
 
@@ -143,6 +210,7 @@ public class RefundService {
         orderMapper.rejectRefund(order.getOrderNo(), refund.getBeforeStatus(), now);
         orderService.logStatus(order.getId(), "REFUNDING", refund.getBeforeStatus(), operatorId,
                 admin ? "ADMIN" : "SELLER", "拒绝退款：" + (dto.getRemark() == null ? "" : dto.getRemark()));
+        notifyBuyerRefundHandled(order, refund, false, dto.getRemark());
         return Map.of("refundId", refundId, "status", "REJECTED", "orderStatus", refund.getBeforeStatus());
     }
 

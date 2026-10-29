@@ -253,6 +253,35 @@ module.exports = {
       return `${ctx.topCategoryId}/${ctx.childCategoryId}`;
     });
 
+    await t.test('P1-一级分类聚合', '一级分类包含子分类商品，二级分类只返回自身商品', async () => {
+      const prefix = '分类聚合' + Date.now().toString().slice(-6);
+      const ids = [];
+      try {
+        const parentProduct = ok(await post('/product', payload({
+          title: prefix + '一级', categoryId: ctx.topCategoryId, images: [ctx.avatarUrl]
+        }), { token: alice() }), '建一级分类商品');
+        const childProduct = ok(await post('/product', payload({
+          title: prefix + '二级', categoryId: ctx.childCategoryId, images: [ctx.avatarUrl]
+        }), { token: alice() }), '建二级分类商品');
+        ids.push(String(parentProduct.productId), String(childProduct.productId));
+
+        const parentPage = ok(await get('/product/page?categoryId=' + ctx.topCategoryId + '&pageSize=50', { token: alice() }), '一级分类列表');
+        const parentTitles = parentPage.records.map(r => r.title);
+        t.assert(parentTitles.includes(prefix + '一级'), '一级分类未包含自身商品');
+        t.assert(parentTitles.includes(prefix + '二级'), '一级分类未包含子分类商品');
+
+        const childPage = ok(await get('/product/page?categoryId=' + ctx.childCategoryId + '&pageSize=50', { token: alice() }), '二级分类列表');
+        const childTitles = childPage.records.map(r => r.title);
+        t.assert(childTitles.includes(prefix + '二级'), '二级分类未返回自身商品');
+        t.assert(!childTitles.includes(prefix + '一级'), '二级分类错误包含父分类商品');
+        return `parent=${parentTitles.length}, child=${childTitles.length}`;
+      } finally {
+        for (const id of ids) {
+          try { await del('/product/' + id, { token: alice() }); } catch (_) {}
+        }
+      }
+    });
+
     await t.test('P21-重复名', '同级同名分类返回 10001', async () => {
       const dup = '重复分类' + Date.now().toString().slice(-6);
       const r = await post('/category/admin', { name: dup, parentId: 0, sort: 1 }, { token: api.token('admin') });

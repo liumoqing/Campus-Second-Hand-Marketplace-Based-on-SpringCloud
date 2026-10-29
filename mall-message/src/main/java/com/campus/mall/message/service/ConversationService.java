@@ -139,6 +139,7 @@ public class ConversationService {
             vo.put("peerAvatar", peer.get("avatar"));
             vo.put("peerOnline", registry.online(peerId));
             vo.put("productId", String.valueOf(c.getProductId()));
+            vo.put("productTitle", products.getOrDefault(c.getProductId(), Map.of()).get("title"));
             vo.put("productCover", products.getOrDefault(c.getProductId(), Map.of()).get("coverUrl"));
             vo.put("lastMsg", c.getLastMsg());
             vo.put("lastMsgType", c.getLastMsgType());

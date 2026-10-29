@@ -17,7 +17,15 @@ public interface MessageClient {
     @PostMapping("/card")
     R<Map<String, Object>> card(@RequestBody CardBody body);
 
+    @PostMapping("/notice")
+    R<Void> notice(@RequestBody NoticeBody body);
+
     record CardBody(String orderNo, String cardType, Long buyerId, Long sellerId,
-                    Long productId, String productTitle, String statusText, String actionText) {
+                    Long productId, String productTitle, String productCover,
+                    String statusText, String actionText) {
+    }
+
+    record NoticeBody(Long userId, String type, String title, String content,
+                      String bizId, String bizType) {
     }
 }

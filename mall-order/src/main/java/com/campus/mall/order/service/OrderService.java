@@ -454,11 +454,26 @@ public class OrderService {
     private void sendCard(String orderNo, String cardType, Long fromId, Long toId, Long productId,
                           String title, String statusText, String actionText) {
         try {
+            Map<String, Object> product = productSnapshot(productId);
+            String productTitle = title == null || title.isBlank() ? ProductClient.titleOf(product) : title;
             messageClient.card(new MessageClient.CardBody(orderNo, cardType, fromId, toId, productId,
-                    title, statusText, actionText));
+                    productTitle, ProductClient.coverOf(product), statusText, actionText));
         } catch (Exception e) {
             log.warn("订单卡片推送失败（不影响主流程）：orderNo={}, cardType={}, err={}", orderNo, cardType, e.getMessage());
         }
+    }
+
+    /** 卡片需要商品名与封面；取不到时仍发卡片，但前端会退回会话商品快照。 */
+    private Map<String, Object> productSnapshot(Long productId) {
+        try {
+            R<Map<String, Object>> r = productClient.view(productId);
+            if (r != null && r.getCode() == 0 && r.getData() != null) {
+                return r.getData();
+            }
+        } catch (Exception e) {
+            log.warn("读取订单卡片商品快照失败：productId={}, err={}", productId, e.getMessage());
+        }
+        return Map.of();
     }
 
     private Map<String, Object> safeRating(Long userId) {

@@ -36,6 +36,19 @@ public interface ProductClient {
         return p == null ? null : new BigDecimal(String.valueOf(p));
     }
 
+    static String textOf(Map<String, Object> view, String key) {
+        Object value = view == null ? null : view.get(key);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    static String titleOf(Map<String, Object> view) {
+        return textOf(view, "title");
+    }
+
+    static String coverOf(Map<String, Object> view) {
+        return textOf(view, "coverUrl");
+    }
+
     record StockBody(Long productId, String orderNo) {
     }
 }

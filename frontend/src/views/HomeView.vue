@@ -12,6 +12,7 @@ const router = useRouter()
 const user = useUserStore()
 
 const categories = ref<CategoryNode[]>([])
+const expandedCategoryIds = ref<string[]>([])
 const items = ref<PC[]>([])
 const loading = ref(false)
 const guestLimited = ref(false)
@@ -69,6 +70,39 @@ function pickCategory(id: string) {
   setQuery({ categoryId: categoryId.value === id ? undefined : id })
 }
 
+function isExpanded(id: string) {
+  return expandedCategoryIds.value.includes(id)
+}
+
+function toggleTopCategory(category: CategoryNode) {
+  const hasChildren = !!category.children?.length
+  if (hasChildren) {
+    if (categoryId.value === category.id) {
+      expandedCategoryIds.value = isExpanded(category.id)
+        ? expandedCategoryIds.value.filter((id) => id !== category.id)
+        : [...expandedCategoryIds.value, category.id]
+    } else if (!isExpanded(category.id)) {
+      expandedCategoryIds.value = [...expandedCategoryIds.value, category.id]
+    }
+  }
+  pickCategory(category.id)
+}
+
+function clearCategory() {
+  expandedCategoryIds.value = []
+  setQuery({ categoryId: undefined })
+}
+
+function revealActiveParent() {
+  if (!categoryId.value) return
+  const parent = categories.value.find(
+    (c) => c.id === categoryId.value || (c.children || []).some((s) => s.id === categoryId.value)
+  )
+  if (parent && (parent.children || []).length && !isExpanded(parent.id)) {
+    expandedCategoryIds.value = [...expandedCategoryIds.value, parent.id]
+  }
+}
+
 function pickSort(v: string) {
   setQuery({ sort: v === 'new' ? undefined : v })
 }
@@ -100,6 +134,7 @@ onMounted(async () => {
   window.addEventListener('scroll', onScroll, { passive: true })
   window.addEventListener('resize', onResize)
   categories.value = await productApi.categories()
+  revealActiveParent()
   await load(true)
 })
 
@@ -112,26 +147,38 @@ watch(
   () => [route.query.keyword, route.query.categoryId, route.query.sort, route.query.city],
   () => load(true)
 )
+
+watch(categoryId, revealActiveParent)
 </script>
 
 <template>
   <div class="home mall-page">
     <aside class="cats">
       <div class="cats-title">全部分类</div>
-      <div class="cat" :class="{ active: !categoryId }" @click="setQuery({ categoryId: undefined })">全部</div>
+      <div class="cat" :class="{ active: !categoryId }" @click="clearCategory">全部</div>
       <template v-for="c in categories" :key="c.id">
-        <div class="cat" :class="{ active: categoryId === c.id }" @click="pickCategory(c.id)">
-          {{ c.name }}
-        </div>
         <div
-          v-for="s in c.children || []"
-          :key="s.id"
-          class="cat sub"
-          :class="{ active: categoryId === s.id }"
-          @click="pickCategory(s.id)"
+          class="cat top"
+          :class="{ active: categoryId === c.id, 'has-children': !!c.children?.length, expanded: isExpanded(c.id) }"
+          role="button"
+          tabindex="0"
+          @click="toggleTopCategory(c)"
+          @keydown.enter="toggleTopCategory(c)"
         >
-          {{ s.name }}
+          <span>{{ c.name }}</span>
+          <span v-if="c.children?.length" class="cat-arrow">{{ isExpanded(c.id) ? '▾' : '▸' }}</span>
         </div>
+        <template v-if="isExpanded(c.id)">
+          <div
+            v-for="s in c.children || []"
+            :key="s.id"
+            class="cat sub"
+            :class="{ active: categoryId === s.id }"
+            @click="pickCategory(s.id)"
+          >
+            {{ s.name }}
+          </div>
+        </template>
       </template>
     </aside>
 
@@ -213,6 +260,20 @@ watch(
   color: var(--mall-text-2);
   border-radius: 6px;
   cursor: pointer;
+}
+.cat.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.cat-arrow {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--mall-text-3);
+}
+.cat.top.expanded .cat-arrow {
+  color: var(--mall-primary);
 }
 .cat.sub {
   padding-left: 22px;

@@ -56,12 +56,12 @@ public class MessageController {
         return R.ok(messageService.send(UserContext.requireUserId(), req));
     }
 
-    /** M5 已读：聊天 `{conversationId,lastMsgId}` 与通知 `{noticeIds}` 互斥，都传/都不传 → 10001 */
+    /** M5 已读：聊天 `{conversationId,lastMsgId}` 与通知 `{noticeIds}` 互斥；通知传空数组表示全部已读 */
     @PutMapping("/read")
     public R<Map<String, Object>> read(@RequestBody MessageDtos.Read req) {
         Long userId = UserContext.requireUserId();
         boolean chat = req.getConversationId() != null;
-        boolean notice = req.getNoticeIds() != null && !req.getNoticeIds().isEmpty();
+        boolean notice = req.getNoticeIds() != null;
         if (chat == notice) {
             throw new BizException(ErrorCode.PARAM_INVALID, "conversationId 与 noticeIds 必须二选一");
         }

@@ -209,6 +209,7 @@ public class MessageService {
         card.put("cardType", req.getCardType());
         card.put("productId", String.valueOf(req.getProductId()));
         card.put("productTitle", req.getProductTitle());
+        card.put("productCover", req.getProductCover());
         card.put("statusText", req.getStatusText());
         card.put("actionText", req.getActionText());
         String content;

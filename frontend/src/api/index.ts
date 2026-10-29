@@ -140,9 +140,11 @@ export const orderApi = {
     post<{ reviewId: string; direction: string }>(`/order/${orderNo}/review`, data),
   reviewMine: () => get<PageResult<any>>('/order/review/mine'),
   refundApply: (data: { orderNo: string; amount: number; reason: string }) =>
-    post<void>('/order/refund', data),
-  refundPage: (params: { pageNum?: number; pageSize?: number }) =>
+    post<void>(`/order/${data.orderNo}/refund`, data),
+  refundPage: (params: { role?: string; status?: string; pageNum?: number; pageSize?: number }) =>
     get<PageResult<any>>('/order/refund/page', params),
+  handleRefund: (id: string, data: { agree: boolean; remark?: string }) =>
+    put<void>(`/order/refund/${id}/handle`, data),
   dict: () => get<Record<string, any>>('/order/dict')
 }
 
