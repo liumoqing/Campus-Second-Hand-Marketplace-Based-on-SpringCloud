@@ -172,7 +172,8 @@ spring_Cloud_QiMo/
 <img width="2492" height="1274" alt="image-20261029234318291" src="https://github.com/user-attachments/assets/0cd10f17-82f9-49cf-8493-0d9f9d6ee5dc" />
 主页
 
-![image-20261029234335217](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234335217.png)
+<img width="2492" height="1274" alt="image-20261029234335217" src="https://github.com/user-attachments/assets/65bb39e6-e241-4043-8dd0-2efe7549142b" />
+
 
 消息页面
 
@@ -180,12 +181,17 @@ spring_Cloud_QiMo/
 
 个人页面
 
-![image-20261029234421593](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234421593.png)
+<img width="2492" height="1274" alt="image-20261029234404757" src="https://github.com/user-attachments/assets/710510eb-2cc1-4255-b57a-347b6703810c" />
+
 
 商品详情页
 
-![image-20261029234503892](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234503892.png)
+<img width="2492" height="1274" alt="image-20261029234421593" src="https://github.com/user-attachments/assets/74aeefbc-c991-4893-9d44-0b2a1a022291" />
+
 
 管理员后台
+<img width="2478" height="1365" alt="image-20261029234503892" src="https://github.com/user-attachments/assets/9b924ac2-fbfa-48cd-b86e-3531bf67b760" />
+商品管理页
+<img width="2478" height="1365" alt="image-20261029234522893" src="https://github.com/user-attachments/assets/497fc91c-1ec6-4a1a-9f0a-d9b0908a0764" />
+功能较多，只展示常用功能
 
-![image-20261029234522893](C:\Users\Lz\AppData\Roaming\Typora\typora-user-images\image-20261029234522893.png)
