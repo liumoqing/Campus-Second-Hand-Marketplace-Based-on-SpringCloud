@@ -1,0 +1,98 @@
+timeStamp,elapsed,label,responseCode,responseMessage,threadName,dataType,success,failureMessage,bytes,sentBytes,grpThreads,allThreads,URL,Latency,IdleTime,Connect
+1793299502851,27,GET /product/page,200,OK,公开接口基线（10 QPS） 1-1,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,27,0,12
+1793299502880,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-1,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299502885,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-1,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299502894,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-1,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299502898,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-1,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,7,0,0
+1793299502906,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-1,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299503197,11,GET /product/page,200,OK,公开接口基线（10 QPS） 1-2,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,11,0,0
+1793299503208,4,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-2,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,4,0,0
+1793299503213,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-2,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299503221,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-2,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299503225,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-2,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299503234,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-2,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299503598,10,GET /product/page,200,OK,公开接口基线（10 QPS） 1-3,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,10,0,0
+1793299503608,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-3,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299503612,9,GET /product/page,200,OK,公开接口基线（10 QPS） 1-3,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299503621,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-3,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299503624,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-3,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299503633,2,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-3,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,2,0,0
+1793299503994,10,GET /product/page,200,OK,公开接口基线（10 QPS） 1-4,text,true,,9571,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,10,0,0
+1793299504004,4,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-4,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,4,0,0
+1793299504008,9,GET /product/page,200,OK,公开接口基线（10 QPS） 1-4,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,9,0,0
+1793299504017,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-4,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299504021,9,GET /product/page,200,OK,公开接口基线（10 QPS） 1-4,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,9,0,0
+1793299504030,4,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-4,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,4,0,0
+1793299504395,9,GET /product/page,200,OK,公开接口基线（10 QPS） 1-5,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,9,0,0
+1793299504404,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-5,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299504408,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-5,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299504416,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-5,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299504419,8,GET /product/page,200,OK,公开接口基线（10 QPS） 1-5,text,true,,9564,818,1,1,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=20,8,0,0
+1793299504428,3,GET /category/tree,200,OK,公开接口基线（10 QPS） 1-5,text,true,,2640,797,1,1,http://127.0.0.1:4399/category/tree,3,0,0
+1793299504433,6,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,6,0,1
+1793299504440,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299504445,6,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,6,0,0
+1793299504452,5,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,5,0,0
+1793299504458,3,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,3,0,0
+1793299504462,4,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,4,0,0
+1793299504467,5,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,849,791,1,1,http://127.0.0.1:4399/auth/me,5,0,0
+1793299504472,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299504476,6,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-1,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,6,0,0
+1793299505103,8,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,8,0,0
+1793299505112,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,946,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299505117,6,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,6,0,0
+1793299505123,6,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,6,0,0
+1793299505130,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299505135,5,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,5,0,0
+1793299505141,5,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,5,0,0
+1793299505147,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299505152,8,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-2,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,8,0,0
+1793299505767,8,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,8,0,1
+1793299505775,5,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,5,0,0
+1793299505781,6,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,6,0,0
+1793299505788,6,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,849,791,1,1,http://127.0.0.1:4399/auth/me,6,0,0
+1793299505795,5,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,940,796,1,1,http://127.0.0.1:4399/user/profile,5,0,0
+1793299505800,7,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,585,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,7,0,0
+1793299505808,6,GET /auth/me,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,844,791,1,1,http://127.0.0.1:4399/auth/me,6,0,0
+1793299505814,4,GET /user/profile,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,946,796,1,1,http://127.0.0.1:4399/user/profile,4,0,0
+1793299505818,4,GET /order/page,200,OK,登录后接口基线（3 QPS） 2-3,text,true,,580,828,1,1,http://127.0.0.1:4399/order/page?role=bought&pageNum=1&pageSize=10,4,0,0
+1793299505836,5,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-19,text,false,,523,149,35,35,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,5,0,1
+1793299505837,4,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-17,text,false,,523,149,35,35,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,4,0,0
+1793299505836,5,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-13,text,false,,523,149,35,35,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,5,0,1
+1793299505840,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-26,text,false,,523,149,33,33,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,1
+1793299505840,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-18,text,false,,523,149,33,33,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,0
+1793299505827,18,Burst /product/page,200,OK,Sentinel 突发验证 3-15,text,true,,9562,149,31,31,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,18,0,1
+1793299505825,20,Burst /product/page,200,OK,Sentinel 突发验证 3-1,text,true,,9569,149,31,31,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,20,0,0
+1793299505825,21,Burst /product/page,200,OK,Sentinel 突发验证 3-6,text,true,,9562,149,32,32,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,20,0,1
+1793299505840,6,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-30,text,false,,523,149,32,32,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,6,0,1
+1793299505825,20,Burst /product/page,200,OK,Sentinel 突发验证 3-3,text,true,,9569,149,32,32,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,20,0,0
+1793299505825,21,Burst /product/page,200,OK,Sentinel 突发验证 3-2,text,true,,9562,149,32,32,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,20,0,0
+1793299505838,8,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-29,text,false,,523,149,32,32,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,8,0,2
+1793299505826,22,Burst /product/page,200,OK,Sentinel 突发验证 3-5,text,true,,9569,149,25,25,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,21,0,1
+1793299505827,21,Burst /product/page,200,OK,Sentinel 突发验证 3-16,text,true,,9562,149,25,25,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,20,0,1
+1793299505841,9,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-31,text,false,,523,149,23,23,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,8,0,0
+1793299505842,9,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-21,text,false,,523,149,23,23,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,9,0,4
+1793299505848,5,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-7,text,false,,523,149,24,24,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,5,0,2
+1793299505847,6,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-25,text,false,,523,149,24,24,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,6,0,2
+1793299505850,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-37,text,false,,523,149,24,24,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,1
+1793299505852,2,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-39,text,false,,523,149,21,21,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,2,0,0
+1793299505852,2,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-38,text,false,,523,149,21,21,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,2,0,1
+1793299505851,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-33,text,false,,523,149,21,21,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,1
+1793299505852,2,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-32,text,false,,523,149,21,21,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,2,0,0
+1793299505852,2,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-34,text,false,,523,149,21,21,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,2,0,0
+1793299505853,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-35,text,false,,523,149,16,16,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,1
+1793299505853,3,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-36,text,false,,523,149,16,16,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,3,0,1
+1793299505854,2,Burst /product/page,429,Too Many Requests,Sentinel 突发验证 3-40,text,false,,523,149,16,16,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,2,0,1
+1793299505828,30,Burst /product/page,200,OK,Sentinel 突发验证 3-20,text,true,,9569,149,13,13,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,30,0,2
+1793299505826,32,Burst /product/page,200,OK,Sentinel 突发验证 3-4,text,true,,9562,149,13,13,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,32,0,1
+1793299505829,29,Burst /product/page,200,OK,Sentinel 突发验证 3-11,text,true,,9562,149,13,13,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,29,0,0
+1793299505828,35,Burst /product/page,200,OK,Sentinel 突发验证 3-12,text,true,,9562,149,10,10,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,34,0,1
+1793299505830,33,Burst /product/page,200,OK,Sentinel 突发验证 3-8,text,true,,9569,149,10,10,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,32,0,0
+1793299505829,40,Burst /product/page,200,OK,Sentinel 突发验证 3-10,text,true,,9569,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,40,0,1
+1793299505832,37,Burst /product/page,200,OK,Sentinel 突发验证 3-28,text,true,,9562,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,37,0,1
+1793299505830,39,Burst /product/page,200,OK,Sentinel 突发验证 3-9,text,true,,9569,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,39,0,0
+1793299505828,41,Burst /product/page,200,OK,Sentinel 突发验证 3-14,text,true,,9562,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,41,0,0
+1793299505835,34,Burst /product/page,200,OK,Sentinel 突发验证 3-22,text,true,,9562,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,34,0,1
+1793299505835,34,Burst /product/page,200,OK,Sentinel 突发验证 3-23,text,true,,9569,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,34,0,1
+1793299505833,36,Burst /product/page,200,OK,Sentinel 突发验证 3-24,text,true,,9569,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,36,0,2
+1793299505830,39,Burst /product/page,200,OK,Sentinel 突发验证 3-27,text,true,,9562,149,8,8,http://127.0.0.1:4399/product/page?pageNum=1&pageSize=1,39,0,0

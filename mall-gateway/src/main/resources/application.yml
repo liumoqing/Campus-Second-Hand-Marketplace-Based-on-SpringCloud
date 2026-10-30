@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: mall-gateway
+  config:
+    import:
+      - "optional:nacos:mall-common.yaml?group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}&refreshEnabled=true"
+      - "optional:nacos:${spring.application.name}.yaml?group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}&refreshEnabled=true"
   data:
     redis:
       host: 127.0.0.1
@@ -11,7 +15,18 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        group: ${NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
+    sentinel:
+      eager: true
+      web-context-unify: false
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+        port: 8720
     gateway:
       server:
         webflux:
@@ -32,11 +47,15 @@ spring:
             - id: mall-auth
               uri: lb://mall-auth
               predicates:
-                - Path=/auth/**
+                - Path=/auth/**,/oauth2/**,/.well-known/**,/login
             - id: mall-user
               uri: lb://mall-user
               predicates:
                 - Path=/user/**
+            - id: mall-runtime-config
+              uri: lb://mall-user
+              predicates:
+                - Path=/config/runtime
             - id: mall-product
               uri: lb://mall-product
               predicates:
@@ -61,6 +80,8 @@ mall:
     access-token-minutes: 120
   security:
     auth-enabled: true
+    # OAuth2 资源服务器用 mall-auth 的公钥验签；本地默认直连 4400
+    jwk-set-uri: ${OAUTH2_JWK_SET_URI:http://127.0.0.1:4400/oauth2/jwks}
   internal:
     # 服务间调用凭据，与各服务的 mall.internal.token 保持一致
     token: mall-internal-2026
@@ -69,10 +90,29 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,prometheus
   endpoint:
     health:
       show-details: always
+  observations:
+    key-values:
+      application: ${spring.application.name}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 logging:
   level:

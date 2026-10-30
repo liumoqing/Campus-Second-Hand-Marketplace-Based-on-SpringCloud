@@ -10,29 +10,31 @@ const props = withDefaults(defineProps<{ modelValue: string[]; limit?: number; b
 const emit = defineEmits<{ (e: 'update:modelValue', v: string[]): void }>()
 
 const uploading = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 
 function pick() {
-  const input = document.createElement('input')
-  input.type = 'file'
-  input.accept = 'image/jpeg,image/png,image/webp,image/gif'
-  input.onchange = async () => {
-    const file = input.files?.[0]
-    if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      ElMessage.error('图片不能超过 5MB')
-      return
-    }
-    uploading.value = true
-    try {
-      const r = await productApi.upload(file, props.bizType)
-      emit('update:modelValue', [...props.modelValue, r.url])
-    } catch {
-      /* 拦截器已提示 */
-    } finally {
-      uploading.value = false
-    }
+  fileInput.value?.click()
+}
+
+async function onFileChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    ElMessage.error('图片不能超过 5MB')
+    input.value = ''
+    return
   }
-  input.click()
+  uploading.value = true
+  try {
+    const r = await productApi.upload(file, props.bizType)
+    emit('update:modelValue', [...props.modelValue, r.url])
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
 }
 
 function remove(i: number) {
@@ -43,6 +45,8 @@ function remove(i: number) {
 </script>
 
 <template>
+  <input ref="fileInput" class="file-input" type="file"
+         accept="image/jpeg,image/png,image/webp,image/gif" @change="onFileChange" />
   <div class="uploader">
     <div v-for="(url, i) in modelValue" :key="url" class="item">
       <img :src="url" alt="" />
@@ -59,6 +63,10 @@ function remove(i: number) {
 </template>
 
 <style scoped>
+.file-input {
+  display: none;
+}
+
 .uploader {
   display: flex;
   flex-wrap: wrap;

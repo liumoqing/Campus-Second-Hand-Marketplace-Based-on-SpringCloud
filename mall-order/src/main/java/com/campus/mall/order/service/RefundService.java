@@ -8,7 +8,6 @@ import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.exception.BizException;
 import com.campus.mall.common.security.UserContext;
 import com.campus.mall.order.client.MessageClient;
-import com.campus.mall.order.client.PaymentClient;
 import com.campus.mall.order.client.ProductClient;
 import com.campus.mall.order.dto.RefundDtos;
 import com.campus.mall.order.entity.Order;
@@ -47,7 +46,7 @@ public class RefundService {
     private final RefundMapper refundMapper;
     private final OrderMapper orderMapper;
     private final OrderService orderService;
-    private final PaymentClient paymentClient;
+    private final OrderExternalService orderExternalService;
     private final ProductClient productClient;
     private final MessageClient messageClient;
 
@@ -188,7 +187,7 @@ public class RefundService {
 
         if (Boolean.TRUE.equals(dto.getAgree())) {
             // 先让支付服务退款（本地事务，成功才继续），失败就把异常抛回去，单据仍是 APPLYING
-            paymentClient.refund(new PaymentClient.RefundBody(order.getOrderNo(), refund.getAmount(), refund.getReason()));
+            orderExternalService.refund(order.getOrderNo(), refund.getAmount(), refund.getReason());
             refundMapper.transit(refundId, "REFUNDED", now, operatorId, dto.getRemark());
             orderMapper.refunded(order.getOrderNo(), now);
             // 未发货退款要把商品放回去继续卖；已发货/已收货不回收（01 §8.9）

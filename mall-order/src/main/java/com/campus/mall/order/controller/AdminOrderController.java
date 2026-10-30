@@ -1,4 +1,5 @@
 package com.campus.mall.order.controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.api.R;
@@ -24,6 +25,7 @@ import java.util.Map;
 /**
  * 后台订单接口（O16~O18）：订单检索、数据概览、退款仲裁。
  */
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 @RequireRole(com.campus.mall.common.constant.MallConstants.ROLE_ADMIN)
 @RestController
 @RequestMapping("/order/admin")

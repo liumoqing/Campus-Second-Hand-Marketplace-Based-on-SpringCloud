@@ -54,6 +54,7 @@ public class OrderService {
     private final OrderStatusLogMapper logMapper;
     private final ReviewMapper reviewMapper;
     private final ProductClient productClient;
+    private final OrderExternalService orderExternalService;
     private final UserClient userClient;
     private final MessageClient messageClient;
 
@@ -428,11 +429,7 @@ public class OrderService {
     // ---------------- 外部调用（失败降级） ----------------
 
     private Map<String, Object> viewProduct(Long productId) {
-        R<Map<String, Object>> r = productClient.view(productId);
-        if (r == null || r.getCode() != 0 || r.getData() == null) {
-            throw new BizException(ErrorCode.PRODUCT_NOT_FOUND);
-        }
-        return r.getData();
+        return orderExternalService.viewProduct(productId);
     }
 
     private Map<String, Object> address(Long userId, Long addressId) {

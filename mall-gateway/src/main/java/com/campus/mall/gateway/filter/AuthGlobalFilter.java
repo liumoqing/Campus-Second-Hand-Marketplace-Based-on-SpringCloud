@@ -1,7 +1,7 @@
 package com.campus.mall.gateway.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Claims;
+import org.springframework.security.oauth2.jwt.Jwt;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilterChain;
@@ -61,13 +61,14 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         this.whiteList = (whiteListCsv == null || whiteListCsv.isBlank())
                 ? List.of("/auth/captcha", "/auth/register", "/auth/login", "/auth/refresh",
                 "/auth/avatar", "/auth/reset-code", "/auth/reset-password",
-                "/product/page", "/category/tree", "/payment/callback/**",
+                "/oauth2/**", "/.well-known/**", "/login",
+                "/product/page", "/category/tree", "/payment/callback/**", "/config/runtime",
                 // 图片/头像对外可读（上传出来的静态文件 + 演示头像）
                 "/files/**",
                 "/static/**",
                 // WebSocket 握手用 ?token= 自己验签（浏览器 WS 不能自定义 Authorization 头）
                 "/ws/**",
-                "/actuator/health", "/favicon.ico")
+                "/actuator/health", "/actuator/info", "/actuator/prometheus", "/favicon.ico")
                 : Arrays.stream(whiteListCsv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList();
     }
 
@@ -106,16 +107,30 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             }
             return writeError(exchange, HttpStatus.UNAUTHORIZED, 10002, "未登录或登录已过期");
         }
-        Claims claims = jwtSupport.parse(token);
+        Jwt claims = jwtSupport.parse(token);
         if (claims == null) {
             if (white) {
                 return chain.filter(exchange.mutate().request(builder.build()).build());
             }
             return writeError(exchange, HttpStatus.UNAUTHORIZED, 10002, "未登录或登录已过期");
         }
-        String userId = String.valueOf(claims.get("uid"));
-        String role = String.valueOf(claims.getOrDefault("role", "USER"));
-        String tv = String.valueOf(claims.getOrDefault("tv", "0"));
+        String userId = claims.getClaimAsString("uid");
+        String role = claims.getClaimAsString("role");
+        String tv = claims.getClaimAsString("tv");
+        if (role == null || role.isBlank()) {
+            role = "USER";
+        }
+        if (tv == null || tv.isBlank()) {
+            tv = "0";
+        }
+        final String resolvedRole = role;
+        final String resolvedTv = tv;
+        if (userId == null || userId.isBlank()) {
+            if (white) {
+                return chain.filter(exchange.mutate().request(builder.build()).build());
+            }
+            return writeError(exchange, HttpStatus.UNAUTHORIZED, 10002, "未登录或登录已过期");
+        }
 
         // 白名单接口即使 token 已失效（被踢/改角色/过期），也只是降级成游客，不能把公开页打成 401
         if (white) {
@@ -125,10 +140,10 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                             return chain.filter(exchange.mutate().request(builder.build()).build());
                         }
                         return redis.opsForValue().get("mall:user:tv:" + userId)
-                                .defaultIfEmpty(tv)
+                                .defaultIfEmpty(resolvedTv)
                                 .flatMap(currentTv -> {
-                                    ServerHttpRequest req = tv.equals(currentTv)
-                                            ? builder.header(HEADER_USER_ID, userId).header(HEADER_USER_ROLE, role).build()
+                                    ServerHttpRequest req = resolvedTv.equals(currentTv)
+                                            ? builder.header(HEADER_USER_ID, userId).header(HEADER_USER_ROLE, resolvedRole).build()
                                             : builder.build();
                                     return chain.filter(exchange.mutate().request(req).build());
                                 });
@@ -144,14 +159,14 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                                         "您因违反用户规则已被封禁", v));
                     }
                     return redis.opsForValue().get("mall:user:tv:" + userId)
-                            .defaultIfEmpty(tv)
+                            .defaultIfEmpty(resolvedTv)
                             .flatMap(currentTv -> {
-                                if (!currentTv.equals(tv)) {
+                                if (!currentTv.equals(resolvedTv)) {
                                     return writeError(exchange, HttpStatus.UNAUTHORIZED, 10002, "登录状态已失效，请重新登录");
                                 }
                                 ServerHttpRequest req = builder
                                         .header(HEADER_USER_ID, userId)
-                                        .header(HEADER_USER_ROLE, role)
+                                        .header(HEADER_USER_ROLE, resolvedRole)
                                         .build();
                                 return chain.filter(exchange.mutate().request(req).build());
                             });

@@ -1,4 +1,5 @@
 package com.campus.mall.product.controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.campus.mall.common.api.R;
 import com.campus.mall.common.constant.MallConstants;
@@ -37,6 +38,7 @@ public class CategoryController {
 
     /** P20 后台分类树（含停用项与 status） */
     @GetMapping("/admin/tree")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<List<CategoryNode>> adminTree() {
         return R.ok(categoryService.tree(false));
@@ -44,6 +46,7 @@ public class CategoryController {
 
     /** P21 新建分类 */
     @PostMapping("/admin")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Map<String, Object>> create(@RequestBody Category body) {
         return R.ok(Map.of("categoryId", categoryService.create(body)));
@@ -51,6 +54,7 @@ public class CategoryController {
 
     /** P22 改分类（名称/图标/排序/启停） */
     @PutMapping("/admin/{id:\\d+}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Boolean> update(@PathVariable("id") Long id, @RequestBody Category body) {
         return R.ok(categoryService.update(id, body));
@@ -58,6 +62,7 @@ public class CategoryController {
 
     /** P23 删分类（有商品或子分类则拒绝） */
     @DeleteMapping("/admin/{id:\\d+}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Boolean> delete(@PathVariable("id") Long id) {
         return R.ok(categoryService.delete(id));

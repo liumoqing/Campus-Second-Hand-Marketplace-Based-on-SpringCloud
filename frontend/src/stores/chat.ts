@@ -24,8 +24,9 @@ export const useChatStore = defineStore('chat', () => {
   const pending = new Map<string, (msg: ChatMessage) => void>()
 
   function wsUrl() {
-    // 与 axios 一样直连网关（走 Vite 代理会偶发 500，见 api/http.ts 的说明）
-    const base = (import.meta.env.VITE_WS_BASE as string) || 'ws://127.0.0.1:4399'
+    // 与 API 一样走同源 Vite 代理，避免浏览器跨域/本地网络策略导致 WebSocket 失败。
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
+    const base = (import.meta.env.VITE_WS_BASE as string) || `${protocol}://${location.host}`
     return `${base.replace(/\/$/, '')}/ws/chat?token=${encodeURIComponent(getToken())}`
   }
 

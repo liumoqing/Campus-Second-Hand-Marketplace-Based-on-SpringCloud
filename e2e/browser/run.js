@@ -999,7 +999,7 @@ async function main() {
     note: '浏览器测试使用系统 Chrome + CDP；接口仅用于准备测试数据和清理，关键操作由浏览器触发。',
     conclusion: s.failed === 0
       ? '浏览器侧页面与关键交互均已实现并可触发；未发现阻断性缺失。'
-      : `浏览器侧 ${s.passed}/${s.total} 项通过。所有主要页面与入口均已实现，但确认 ${s.failed} 个前端交互缺陷：卖家卡片因详情响应缺少 sellerId 无法跳转；存草稿按钮触发原生表单提交，请求成功后页面被重载且未进入草稿箱。失败项：${failedNames}。`
+      : `浏览器侧 ${s.passed}/${s.total} 项通过，${s.failed} 项失败：${failedNames}。请按明细中的错误信息和截图定位，避免复用历史结论。`
   };
   writeBrowserReport(meta, s, require('../lib/harness').results);
   console.log(`\n== 浏览器功能验收完成：${s.passed}/${s.total} 通过，${s.failed} 失败 ==`);

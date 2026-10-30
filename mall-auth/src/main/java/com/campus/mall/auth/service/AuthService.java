@@ -16,6 +16,7 @@ import com.campus.mall.common.constant.MallConstants;
 import com.campus.mall.common.exception.BizException;
 import com.campus.mall.common.storage.LocalFileStorage;
 import io.jsonwebtoken.Claims;
+import org.springframework.security.oauth2.jwt.Jwt;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,7 @@ public class AuthService {
 
     private final UserClient userClient;
     private final JwtUtil jwtUtil;
+    private final OAuth2JwtService oauth2JwtService;
     private final CaptchaService captchaService;
     private final StringRedisTemplate redis;
     private final LocalFileStorage storage;
@@ -154,10 +156,11 @@ public class AuthService {
         String access = stripBearer(authorization);
         if (StringUtils.hasText(access)) {
             try {
-                Claims claims = jwtUtil.parse(access);
-                String jti = claims.getId();
-                long ttlMs = claims.getExpiration().getTime() - System.currentTimeMillis();
-                if (ttlMs > 0) {
+                Jwt claims = oauth2JwtService.decode(access);
+                String jti = claims.getClaimAsString("jti");
+                long ttlMs = claims.getExpiresAt() == null ? 0
+                        : claims.getExpiresAt().toEpochMilli() - System.currentTimeMillis();
+                if (jti != null && ttlMs > 0) {
                     redis.opsForValue().set(MallConstants.CACHE_REFRESH_TOKEN + "black:" + jti, "1",
                             Duration.ofMillis(ttlMs));
                 }
@@ -329,7 +332,7 @@ public class AuthService {
 
     private LoginVO build(Long userId, String role, int tv, UserInfoVO info) {
         LoginVO vo = new LoginVO();
-        vo.setAccessToken(jwtUtil.accessToken(userId, role, tv));
+        vo.setAccessToken(oauth2JwtService.accessToken(userId, role, tv));
         String refresh = jwtUtil.refreshToken(userId, tv);
         Claims claims = jwtUtil.parse(refresh);
         redis.opsForValue().set(MallConstants.CACHE_REFRESH_TOKEN + claims.getId(),

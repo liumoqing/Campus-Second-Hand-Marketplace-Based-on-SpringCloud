@@ -1,41 +1,33 @@
 package com.campus.mall.message.ws;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-
-/** 只做一件事：把握手带进来的 token 解析成 userId（role/tv 不在这里校验，网关已校验）。 */
+/** WebSocket 握手只负责从 OAuth2 JWT 中取 userId；签名、有效期由 JWKS 解码器校验。 */
 @Component
 public class JwtUtil {
 
-    @Value("${mall.jwt.secret}")
-    private String secret;
+    private final JwtDecoder decoder;
 
-    private SecretKey key;
-
-    @PostConstruct
-    void init() {
-        key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+    public JwtUtil(@Value("${mall.security.jwk-set-uri:http://127.0.0.1:4400/oauth2/jwks}") String jwkSetUri) {
+        this.decoder = NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
-    /** 解析失败（过期/签名不对/不是 access 令牌）一律返回 null，由拦截器拒绝握手 */
+    /** 解析失败（过期/签名不对/不是 access 令牌）一律返回 null，由拦截器拒绝握手。 */
     public Long userIdOf(String token) {
         if (token == null || token.isBlank()) {
             return null;
         }
         try {
-            Claims claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
-            String type = claims.get("type", String.class);
+            Jwt jwt = decoder.decode(token);
+            String type = jwt.getClaimAsString("type");
             if (type != null && !"access".equals(type)) {
                 return null;
             }
-            Object uid = claims.get("uid");
+            Object uid = jwt.getClaim("uid");
             return uid == null ? null : Long.valueOf(String.valueOf(uid));
         } catch (Exception e) {
             return null;

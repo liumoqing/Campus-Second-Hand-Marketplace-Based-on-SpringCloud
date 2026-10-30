@@ -1,0 +1,4 @@
+mall:
+  runtime:
+    central-marker: mall-product
+

@@ -1,0 +1,16 @@
+mall:
+  runtime:
+    central-marker: mall-gateway
+  sentinel:
+    gateway-flow-rules: |
+      [
+        {
+          "resource": "mall-product-page",
+          "resourceMode": 1,
+          "grade": 1,
+          "count": 20,
+          "intervalSec": 1,
+          "controlBehavior": 0
+        }
+      ]
+

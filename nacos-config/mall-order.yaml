@@ -1,0 +1,24 @@
+mall:
+  runtime:
+    central-marker: mall-order
+  sentinel:
+    order-degrade-rules: |
+      [
+        {
+          "resource": "orderProductView",
+          "grade": 1,
+          "count": 0.5,
+          "timeWindow": 10,
+          "minRequestAmount": 5,
+          "statIntervalMs": 10000
+        },
+        {
+          "resource": "orderPaymentRefund",
+          "grade": 1,
+          "count": 0.5,
+          "timeWindow": 10,
+          "minRequestAmount": 5,
+          "statIntervalMs": 10000
+        }
+      ]
+

@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: mall-dashboards
+    orgId: 1
+    folder: 晴川二手市场
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    options:
+      path: D:/project/javaProject/spring_Cloud_QiMo/observability/grafana/dashboards

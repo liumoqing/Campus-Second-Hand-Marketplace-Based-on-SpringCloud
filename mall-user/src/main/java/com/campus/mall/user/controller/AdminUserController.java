@@ -1,4 +1,5 @@
 package com.campus.mall.user.controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.campus.mall.common.api.ErrorCode;
 import com.campus.mall.common.api.PageResult;
@@ -37,30 +38,35 @@ public class AdminUserController {
     private final AdminUserService adminUserService;
 
     @GetMapping("/page")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<PageResult<AdminUserVO>> page(AdminUserQuery query) {
         return R.ok(adminUserService.page(query));
     }
 
     @GetMapping("/{id:\\d+}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<AdminUserDetailVO> detail(@PathVariable Long id) {
         return R.ok(adminUserService.detail(id));
     }
 
     @PutMapping("/{id:\\d+}/ban")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Map<String, Object>> ban(@PathVariable Long id, @RequestBody @Valid BanDTO dto) {
         return R.ok(adminUserService.ban(UserContext.requireUserId(), id, dto));
     }
 
     @PutMapping("/{id:\\d+}/unban")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Object> unban(@PathVariable Long id) {
         return R.ok(adminUserService.unban(UserContext.requireUserId(), id));
     }
 
     @PutMapping("/{id:\\d+}/publish-permission")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<Map<String, Object>> publishPermission(@PathVariable Long id,
                                                    @RequestBody @Valid PublishPermissionDTO dto) {
@@ -68,6 +74,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{id:\\d+}/role")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_SUPER_ADMIN)
     public R<Map<String, Object>> setRole(@PathVariable Long id, @RequestBody @Valid RoleDTO dto) {
         if (!UserContext.isSuperAdmin()) {

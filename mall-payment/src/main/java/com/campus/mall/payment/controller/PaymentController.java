@@ -1,4 +1,5 @@
 package com.campus.mall.payment.controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.api.R;
@@ -53,6 +54,7 @@ public class PaymentController {
 
     /** Y6 后台支付单分页 */
     @GetMapping("/admin/page")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @RequireRole(MallConstants.ROLE_ADMIN)
     public R<PageResult<PaymentVO>> adminPage(@RequestParam(defaultValue = "1") int pageNum,
                                               @RequestParam(defaultValue = "10") int pageSize,

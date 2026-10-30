@@ -2,10 +2,10 @@ import axios, { type AxiosRequestConfig } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { R } from '@/types'
 
-// 直连网关（4399 已开 CORS）。早期版本走 Vite 的 /api 代理，但 node 的 http-proxy 偶发
-// Parse Error: Data after Connection: close → 前端收到 500「服务器内部错误」，故去掉代理这一跳。
-// 需要改地址时用环境变量 VITE_API_BASE，例如 .env.local 里 VITE_API_BASE=http://127.0.0.1:4399
-export const API_BASE = (import.meta.env.VITE_API_BASE as string) || 'http://127.0.0.1:4399'
+// 浏览器默认走 Vite 同源代理，避免本地浏览器/隐私网络策略导致跨域 Network Error。
+// Vite 会把 /api 代理到网关 4399，并去掉 /api 前缀。
+// 需要直连时仍可通过 VITE_API_BASE 覆盖，例如 http://127.0.0.1:4399
+export const API_BASE = (import.meta.env.VITE_API_BASE as string) || '/api'
 
 const http = axios.create({ baseURL: API_BASE, timeout: 15000 })
 

@@ -1,4 +1,5 @@
 package com.campus.mall.product.controller;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import com.campus.mall.common.api.PageResult;
 import com.campus.mall.common.api.R;
@@ -22,6 +23,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/product/admin")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
 @RequireRole(MallConstants.ROLE_ADMIN)
 public class AdminProductController {
 

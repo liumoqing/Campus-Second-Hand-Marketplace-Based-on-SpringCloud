@@ -4,6 +4,10 @@ server:
 spring:
   application:
     name: mall-auth
+  config:
+    import:
+      - "optional:nacos:mall-common.yaml?group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}&refreshEnabled=true"
+      - "optional:nacos:${spring.application.name}.yaml?group=${NACOS_CONFIG_GROUP:DEFAULT_GROUP}&refreshEnabled=true"
   data:
     redis:
       host: 127.0.0.1
@@ -11,7 +15,18 @@ spring:
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        group: ${NACOS_CONFIG_GROUP:DEFAULT_GROUP}
+        file-extension: yaml
+        refresh-enabled: true
+    sentinel:
+      eager: true
+      web-context-unify: false
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+        port: 8721
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
@@ -22,6 +37,10 @@ spring:
       max-request-size: 5MB
 
 mall:
+  security:
+    downstream-enabled: false
+  oauth2:
+    issuer: ${OAUTH2_ISSUER:http://127.0.0.1:4400}
   jwt:
     secret: qingchuan-mall-jwt-secret-key-please-change-in-production-2026
     access-token-minutes: 120
@@ -43,7 +62,29 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  endpoint:
+    health:
+      show-details: always
+  observations:
+    key-values:
+      application: ${spring.application.name}
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:1.0}
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://127.0.0.1:9411/api/v2/spans}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 logging:
   level:

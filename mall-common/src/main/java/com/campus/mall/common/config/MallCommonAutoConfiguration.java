@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -24,7 +25,7 @@ import org.springframework.core.Ordered;
  */
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
-@Import({JacksonConfig.class, GlobalExceptionHandler.class, FeignInternalConfiguration.class,
+@Import({JacksonConfig.class, GlobalExceptionHandler.class, FeignInternalConfiguration.class, MethodSecurityConfiguration.class, ServiceSecurityConfiguration.class,
         com.campus.mall.common.storage.LocalFileStorage.class})
 public class MallCommonAutoConfiguration {
 
@@ -42,7 +43,7 @@ public class MallCommonAutoConfiguration {
     public FilterRegistrationBean<UserContextFilter> userContextFilter() {
         FilterRegistrationBean<UserContextFilter> bean = new FilterRegistrationBean<>(new UserContextFilter());
         bean.addUrlPatterns("/*");
-        bean.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
+        bean.setOrder(SecurityProperties.DEFAULT_FILTER_ORDER + 10);
         return bean;
     }
 

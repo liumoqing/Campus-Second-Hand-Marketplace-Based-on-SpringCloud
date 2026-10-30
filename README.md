@@ -16,7 +16,7 @@
 | 注册/配置 | Nacos 3.0.3（8848，控制台 8090） |
 | 分布式事务 | Seata 2.5.0（8091，注册到 Nacos，`store.mode=db`） |
 | 持久层 | MyBatis-Plus 3.5.9（需额外引入 `mybatis-plus-jsqlparser`） |
-| 鉴权 | JJWT 0.12.6，网关统一校验并注入 `X-User-Id` / `X-User-Role` |
+| 鉴权 | Spring Authorization Server 1.5.8 + Spring Security 6.5.11；RSA JWT/JWKS；网关资源服务器 + `@PreAuthorize` |
 | 熔断/链路 | Sentinel 1.8.10（8858）、Zipkin 3.6.1（9411，可选） |
 | 前端 | Vue 3.5 + TypeScript + Vite 5 + Element Plus + Pinia |
 
@@ -25,7 +25,7 @@
 | 模块 | 端口 | 职责 |
 |---|---|---|
 | `mall-gateway` | 4399 | 路由、JWT/token_version/封禁校验、限流、CORS、traceId |
-| `mall-auth` | 4400 | 验证码、注册、登录、刷新、登出、改密、找回密码（**不建库**） |
+| `mall-auth` | 4400 | 验证码、注册、登录、刷新、登出、改密、找回密码；标准 OAuth2 授权服务器（**不建库**） |
 | `mall-user` | 4401 | 资料、个性签名、收货地址、信用分、卖家主页、后台用户治理 |
 | `mall-product` | 4402 | 分类、商品、图片、收藏、商品评论区、库存锁定、上传、静态资源 |
 | `mall-order` | 4403 | 订单状态机、运费、双向评价、退款仲裁 |
@@ -148,9 +148,9 @@ scripts\restart-all.cmd           :: 停 → 构建 → 起（改完代码推荐
 
 1. 接入 RocketMQ（订单超时延迟消息、订单状态卡片异步化）。
 2. 图片改 MinIO（或对象存储）。
-3. 前端补单元测试与 E2E；主 chunk 拆包。
-4. 一键启停脚本（`scripts/start-all.ps1` / `stop-all.ps1`）。
-5. 接入 Sentinel 控制台规则与 Zipkin 链路（jar 已在 `D:\sentinel-dashboard`、`D:\zipkin-server`）。
+3. 前端补单元测试与主 chunk 拆包。
+4. 前端切换为标准 OAuth2 授权码 + PKCE 回调，逐步减少对兼容 `/auth/login` 的依赖。
+5. 增加 Dockerfile 与 `docker-compose.yml`，实现容器化一键部署。
 
 ## 8. 目录结构
 

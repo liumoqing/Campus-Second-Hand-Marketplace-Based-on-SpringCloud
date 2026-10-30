@@ -7,6 +7,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -29,6 +30,12 @@ public class GlobalExceptionHandler {
     public R<Object> handleBiz(BizException e, HttpServletRequest request) {
         log.warn("[biz] {} {} -> {} {}", request.getMethod(), request.getRequestURI(), e.getCode(), e.getMessage());
         return R.fail(e.getCode(), e.getMessage(), e.getData());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public R<Object> handleAccessDenied(AccessDeniedException e, HttpServletRequest request) {
+        log.warn("[forbidden] {} {} -> 10003", request.getMethod(), request.getRequestURI());
+        return R.fail(ErrorCode.FORBIDDEN);
     }
 
     @ExceptionHandler(BindException.class)

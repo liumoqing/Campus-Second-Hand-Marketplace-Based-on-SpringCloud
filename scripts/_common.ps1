@@ -180,7 +180,7 @@ function Start-ProjectServices {
     foreach ($s in $script:Services) {
         $jar = Join-Path $script:Root $s.Jar
         if (-not (Test-Path $jar)) { Write-Host ("  [skip] {0} 未构建：{1}" -f $s.Name, $s.Jar) -ForegroundColor Yellow; continue }
-        $args = @('-Xms96m', '-Xmx512m', '-jar', $jar) + $s.Args
+        $args = @('-Xms48m', '-Xmx160m', '-XX:MaxMetaspaceSize=160m', '-XX:ReservedCodeCacheSize=64m', '-XX:+UseSerialGC', '-jar', $jar) + $s.Args
         $out = Join-Path $script:RunDir ($s.Name + '.log')
         if (Test-Path $out) { Remove-Item $out -Force -ErrorAction SilentlyContinue }
         $p = Start-Process -FilePath $script:JavaExe -ArgumentList $args -WorkingDirectory $script:Root -WindowStyle Hidden -RedirectStandardOutput $out -RedirectStandardError ($out -replace '\.log$', '.err.log') -PassThru
